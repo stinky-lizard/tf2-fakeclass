@@ -16,6 +16,14 @@
 #define EF_NOSHADOW 0x010
 #define EF_NORECEIVESHADOW 0x040
 
+//this is just for clarity of what numbers mean what codes
+enum FuncOutput
+{
+	GOOD,
+	SETSKIN_TARGETNOTEAM,
+	GETPATHARG_ALREADYFILLED,
+	GETPATHARG_NOVAL
+}
 
 public Plugin myinfo = 
 {
@@ -53,11 +61,10 @@ public void OnPluginStart()
 
 	hDummyItemView = TF2Items_CreateItem(OVERRIDE_ALL|FORCE_GENERATION);
 	TF2Items_SetClassname(hDummyItemView, "tf_wearable");
-	TF2Items_SetItemIndex(hDummyItemView, -1);
+	TF2Items_SetItemIndex(hDummyItemView, -1); //Q: playermodel2 uses 65535. Is there a reason why?
 	TF2Items_SetQuality(hDummyItemView, 0);
 	TF2Items_SetLevel(hDummyItemView, 0);
 	TF2Items_SetNumAttributes(hDummyItemView, 0);
-
 
 	
 	GameData hGameConf = new GameData("fakeclass");
@@ -70,9 +77,9 @@ public void OnPluginStart()
 	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Virtual, "CBasePlayer::EquipWearable");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	hEquipWearable = EndPrepSDKCall();
+	delete hGameConf;
 	if(hEquipWearable == null) {
 		SetFailState("FakeClass: Failed to create SDKCall for CBasePlayer::EquipWearable.");
-		delete hGameConf;
 		return;
 	}
 	
@@ -80,13 +87,15 @@ public void OnPluginStart()
 	
 }
 
-//set the player's skin.
-//creates an entity that acts as the skin and attaches it to the player,
-//also makes the player invisible
-void SetSkin(int target, char[] skinModel, int client)
+//Creates & gives a wearable to a player.
+//@param target client ID of target.
+//@param model full path to model.
+//@return __REFERENCE__ ID of created entity, or -1 if error (not in game).
+int createWearable(int target, char[] model)
 {
-	//remove skin if it exists
-	RemoveSkin(target);
+	//are they in game?
+	TFTeam team = TF2_GetClientTeam(target);
+	if (team != TFTeam_Blue && team != TFTeam_Red) return -1; //not in game
 
 	//create item that will get skin
 	int iSkinItem = TF2Items_GiveNamedItem(target, hDummyItemView);
@@ -94,15 +103,16 @@ void SetSkin(int target, char[] skinModel, int client)
 	//save skin item
 	int rSkinItem = EntIndexToEntRef(iSkinItem);
 	playerSkinItems[target] = rSkinItem;
-	
+
 	float pos[3];
 	GetClientAbsOrigin(target, pos);
 	
 	DispatchKeyValueVector(rSkinItem, "origin", pos);
-	DispatchKeyValue(rSkinItem, "model", skinModel);
+	DispatchKeyValue(rSkinItem, "model", model);
 
 	SetEntPropString(rSkinItem, Prop_Data, "m_iClassname", "playermodel_wearable");
-
+	//set team
+	SetEntProp(iSkinItem, Prop_Send, "m_iTeamNum", team);
 	SetEntPropFloat(rSkinItem, Prop_Send, "m_flPlaybackRate", 1.0);
 	
 	int effects = GetEntProp(rSkinItem, Prop_Send, "m_fEffects");
@@ -114,20 +124,27 @@ void SetSkin(int target, char[] skinModel, int client)
 	//make it conform to the player's animations
 	SetVariantString("!activator");
 	AcceptEntityInput(rSkinItem, "SetParent", EntIndexToEntRef(target));
+	SetEntProp(rSkinItem, Prop_Send, "m_bValidatedAttachedEntity", 1);
+	
+	SetEntPropEnt(rSkinItem, Prop_Send, "m_hOwnerEntity", target);
+	
+	SetEntityModel(rSkinItem, model);
 
-	//set the team correctly
-	//TODO: hook ubercharges & set the skin for when they're charged (add condition?)
-	//seems to work actually
-	switch (TF2_GetClientTeam(target))
-	{
-		case TFTeam_Blue, TFTeam_Red: { SetEntProp(iSkinItem, Prop_Send, "m_iTeamNum", TF2_GetClientTeam(target)); }
-		default: 
-		{
-			ReplyToCommand(client, "You can't set your skin if you aren't in the game!");
-			return;
-		}
-	}
+	return rSkinItem;
+}
 
+//set the player's skin.
+//creates an entity that acts as the skin and attaches it to the player,
+//also makes the player invisible
+//@return one of SetSkinOutput
+FuncOutput SetSkin(int target, char[] skinModel)
+{
+	//remove skin if it exists
+	RemoveSkin(target);
+
+	int rSkinItem = createWearable(target, skinModel);
+	if (rSkinItem == -1) return SETSKIN_TARGETNOTEAM;
+	
 	//make player (i.e. anim model) invisible
 	SetEntityRenderMode(target, RENDER_NONE);
 	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
@@ -140,15 +157,13 @@ void SetSkin(int target, char[] skinModel, int client)
 	
 	//equip skin
 	SDKCall(hEquipWearable, target, rSkinItem);
-	
-	SetEntProp(rSkinItem, Prop_Send, "m_bValidatedAttachedEntity", 1);
-	
-	SetEntPropEnt(rSkinItem, Prop_Send, "m_hOwnerEntity", target);
-	
-	SetEntityModel(rSkinItem, skinModel);
+
+	return GOOD;
 }
 
 //Gets the target's skin and validates it exists.
+//@param target client ID of target.
+//@return Entity index of skin, or 0 if none exists.
 stock int GetSkin(int target)
 {
 	int iSkin = EntRefToEntIndex(playerSkinItems[client]);
@@ -162,24 +177,27 @@ stock int GetSkin(int target)
 	else return iSkin;
 }
 
-bool RemoveSkin(int client)
+//Removes a skin from a player, deleting the skin entity and making the player animation model visible.
+//@param target Client ID of the target player.
+//@return true if a skin was removed, false if there was no skin to begin with.
+bool RemoveSkin(int target)
 {
 	//make player anim model visible
-	SetEntityRenderMode(client, RENDER_NORMAL);
-	int tarEffects = GetEntProp(client, Prop_Send, "m_fEffects");
+	SetEntityRenderMode(target, RENDER_NORMAL);
+	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
 	tarEffects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW); //enable shadow
-	SetEntProp(client, Prop_Send, "m_fEffects", tarEffects);
+	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
 	
 	//delete skin
-	int index = EntRefToEntIndex(playerSkinItems[client]);
-	if (playerSkinItems[client] && index != INVALID_ENT_REFERENCE)
+	int index = EntRefToEntIndex(playerSkinItems[target]);
+	if (playerSkinItems[target] && index != INVALID_ENT_REFERENCE)
 	{
 		AcceptEntityInput(index, "ClearParent");
-		TF2_RemoveWearable(client, index);
-		playerSkinItems[client] = 0;
+		TF2_RemoveWearable(target, index);
+		playerSkinItems[target] = 0;
 		return true;
 	}
-	playerSkinItems[client] = 0;
+	playerSkinItems[target] = 0;
 	return false;
 }
 
@@ -198,21 +216,19 @@ void RemoveAnim(int client)
 	AcceptEntityInput(client, "SetCustomModel");
 }
 
-bool GetPathArg(int client, int args, int i, char[] tmparg, char[] path, int pathsize)
+//Gets a value arg, performing user input checks along the way
+//@param args how many args are in the full command
+//@param i arg to get value of
+//@param path buffer to store value string into
+//@param pathsize size of path
+//@return one of GETPATHARG_ALREADYFILLED, GETPATHARG_NOVAL, or GOOD
+FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
 {
-	if (path[0])
-	{
-		//it's already set
-		ReplyToCommand(client, "You can only specify %s once!", tmparg);
-		return false;
-	}
-	if (i > args || !checkArgIsVal(i))
-	{
-		ReplyToCommand(client, "Please enter a value for %s.", tmparg);
-		return false;
-	}
+	if (path[0]) return GETPATHARG_ALREADYFILLED;
+	if (i > args || !checkArgIsVal(i)) return GETPATHARG_NOVAL;
+
 	GetCmdArg(i, path, pathsize);
-	return true;
+	return GOOD;
 }
 
 Action MainCommand(int client, int args)
@@ -234,8 +250,10 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for anim
 			i++;
-			if (!GetPathArg(client, args, i, tmparg, animPath, sizeof(animPath)))
+			FuncOutput out = GetPathArg(args, i, animPath, sizeof(animPath));
+			if (out != GOOD)
 			{
+				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
 				return Plugin_Handled;
 			}
 		}
@@ -248,8 +266,10 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for skin
 			i++;
-			if (!GetPathArg(client, args, i, tmparg, skinPath, sizeof(skinPath)))
+			FuncOutput out = GetPathArg(args, i, skinPath, sizeof(skinPath));
+			if (out != GOOD)
 			{
+				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
 				return Plugin_Handled;
 			}
 		}
@@ -262,8 +282,10 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for player
 			i++;
-			if (!GetPathArg(client, args, i, tmparg, playerinput, sizeof(playerinput)))
+			FuncOutput out = GetPathArg(args, i, playerinput, sizeof(playerinput));
+			if (out != GOOD)
 			{
+				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
 				return Plugin_Handled;
 			}
 
@@ -381,11 +403,30 @@ Action MainCommand(int client, int args)
 	}
 	if (skinPath[0])
 	{
-		SetSkin(target, skinPath, client);
+		if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM)
+		{
+			char targetString[64];
+			getTargetString(client, target, targetString, sizeof(targetString));
+			ReplyToCommand(client, "You can't set %s skin; %s aren't in the game!", targetString, (client == target) ? "you" : "they");
+		}
+
 	}
 
 	return Plugin_Handled;
 
+}
+
+bool getTargetString(int client, int target, char[] buffer, int buffersize)
+{
+	if (client == target) strcopy(buffer, buffersize, "your");
+	else
+	{
+		char name[64];
+		GetClientName(target, name, sizeof(name));
+		StrCat(name, sizeof(name), "'s");
+		strcopy(buffer, buffersize, name);
+	}
+	return client == target;
 }
 
 bool checkArgIsVal(int i)
