@@ -89,27 +89,53 @@ public void OnPluginStart()
 	delete hGameConf;
 	
 	//model configs
-	char configFilePath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FC_CONFIGFILEPATH);
-
-	if (!FileExists(configFilePath))
-		CreateConfigFile();
-
-	modelConfig = ReadModelsFromConfig();
-	if (!modelConfig.JumpToKey("models"))
-		PrintToServer("Warning: FakeClass: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
+	RefreshConfigFromFile();
 
 	RegConsoleCmd("fakeclass", MainCommand);
-	
+	RegAdminCmd("fakeclass_manage", ManageCommand, ADMFLAG_GENERIC);
 }
 
 //precache models found in the config file
 public void OnMapStart()
 {
-	/**
-	 * @note Precache your models, sounds, etc. here!
-	 * Not in OnConfigsExecuted! Doing so leads to issues.
-	 */
+	//first go to the first model name
+	if (!modelConfig.GotoFirstSubKey(false)) return; //there are no defined models
+	
+	char curModelName[PLATFORM_MAX_PATH];
+	char curModelPath[PLATFORM_MAX_PATH];
+
+	do
+	{
+		modelConfig.GetSectionName(curModelName, sizeof(curModelName));
+		
+		//get the model path
+		//it's great that you can traverse to a "value key" - its what allows you to iterate over this...
+		//but I wish you could get an array of all the subkeys in the current section.
+		//i think that would be much cleaner, since you could just iterate over all the keys & use the Get functions
+		modelConfig.GoBack();
+		modelConfig.GetString(curModelName, curModelPath, sizeof(curModelPath));
+		modelConfig.JumpToKey(curModelName);
+
+		
+		//does this model exist?
+		if (!FileExists(curModelPath, true))
+		{
+			LogMessage("Warning: FakeClass: The model named %s in the config file does not correspond to a real file.", curModelName);
+			continue;
+		}
+
+		//is this model already precached?
+		if (IsModelPrecached(curModelPath))
+			continue;
+
+		PrecacheModel(curModelPath);
+
+	}
+	while(modelConfig.GotoNextKey(false));
+
+	modelConfig.Rewind();
+	modelConfig.JumpToKey("models");
+
 }
 
 //Remove any skins from players (since they're items, they stay after) & re-enable any players
@@ -336,7 +362,7 @@ FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
 
 Action MainCommand(int client, int args)
 {
-	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH], playerinput[256], targetName[256];
+	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH], targetinput[256];
 	int target = client, resetMode;
 	bool useFullpaths = false, validArgEntered = false, reset = false;
 
@@ -385,7 +411,7 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for player
 			i++;
-			FuncOutput out = GetPathArg(args, i, playerinput, sizeof(playerinput));
+			FuncOutput out = GetPathArg(args, i, targetinput, sizeof(targetinput));
 			if (out != GOOD)
 			{
 				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
@@ -393,7 +419,8 @@ Action MainCommand(int client, int args)
 			}
 
 			//get the player they actually want
-			target = GetClientFromUsername(client, playerinput, targetName, sizeof(targetName));
+			char targetName[65];
+			target = GetClientFromUsername(client, targetinput, targetName, sizeof(targetName));
 		}
 		else if 
 		(
@@ -464,25 +491,29 @@ Action MainCommand(int client, int args)
 		}
 	}
 
-	//translate classes to paths
+	//translate model names to paths
 	if (!useFullpaths)
 	{
 		if (animPath[0])
 		{
-			char classname[PLATFORM_MAX_PATH];
-			strcopy(classname, sizeof(classname), animPath);
-			animPath = "models/player/";
-			StrCat(animPath, sizeof(animPath), classname);
-			StrCat(animPath, sizeof(animPath), ".mdl");
+			char modelname[PLATFORM_MAX_PATH];
+			strcopy(modelname, sizeof(modelname), animPath);
+			if (!modelConfig.GetString(modelname, animPath, sizeof(animPath)))
+			{
+				ReplyToCommand(client, "Sorry, we couldn't find your animation model (%s) in our list. Check your spelling?", modelname);
+				animPath = "";
+			}
 			
 		}
 		if (skinPath[0])
 		{
-			char classname[PLATFORM_MAX_PATH];
-			strcopy(classname, sizeof(classname), skinPath);
-			skinPath = "models/player/";
-			StrCat(skinPath, sizeof(skinPath), classname);
-			StrCat(skinPath, sizeof(skinPath), ".mdl");
+			char modelname[PLATFORM_MAX_PATH];
+			strcopy(modelname, sizeof(modelname), skinPath);
+			if (!modelConfig.GetString(modelname, skinPath, sizeof(skinPath)))
+			{
+				ReplyToCommand(client, "Sorry, we couldn't find your skin model (%s) in our list. Check your spelling?", modelname);
+				skinPath = "";
+			}
 		}
 	}
 
@@ -497,7 +528,8 @@ Action MainCommand(int client, int args)
 				ReplyToCommand(client, "Unknown animation model!");
 		} 
 		else 
-			ReplyToCommand(client, "Sorry, your animation class isn't a real class. Check your spelling?");
+			//the file is set in the config but it wasn't precached... despite it was verified to exist before
+			ReplyToCommand(client, "Sorry, an error occurred. Please report this to the server operator. (FakeClass error code: 21)");
 		animPath = "";
 	}
 	if (skinPath[0] && !IsModelPrecached(skinPath))
@@ -510,7 +542,7 @@ Action MainCommand(int client, int args)
 				ReplyToCommand(client, "Unknown skin model!");
 		} 
 		else 
-			ReplyToCommand(client, "Sorry, your skin class isn't a real class. Check your spelling?");
+			ReplyToCommand(client, "Sorry, an error occurred. Please report this to the server operator. (FakeClass error code: 22)");
 		skinPath = "";
 	}
 
@@ -527,7 +559,7 @@ Action MainCommand(int client, int args)
 		{
 			ReplaceString(animPath, sizeof(animPath), "models/player/", "");
 			ReplaceString(animPath, sizeof(animPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString, animPath);
+			ReplyToCommand(client, "Successfully set %s animations to \"%s\"", targetString, animPath);
 		}
 
 	}
@@ -542,14 +574,39 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
 		else
 		{
+			//TODO fix this for new thing
 			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
 			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString, skinPath);
+			ReplyToCommand(client, "Successfully set %s skin to \"%s\"", targetString, skinPath);
 		}
 	}
 
 	return Plugin_Handled;
 
+}
+
+Action ManageCommand(int client, int args)
+{
+	if (args < 1)
+	{
+		ReplyToCommand(client, "Manage command options: refreshconfig");
+		return Plugin_Handled;
+	}
+
+	char operation[65];
+	GetCmdArg(1, operation, sizeof(operation));
+
+	if(StrEqual(operation, "refreshconfig", false))
+	{
+		RefreshConfigFromFile();
+		ReplyToCommand(client, "Configuration refreshed from file.");
+	}
+	else
+	{
+		ReplyToCommand(client, "Unknown operation.");
+	}
+
+	return Plugin_Handled;
 }
 
 bool GetTargetString(int client, int target, char[] buffer, int buffersize)
@@ -686,6 +743,25 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 }
 
 /**
+ * Refreshes the configuration from the config file. Creates one if necessary.
+ */
+void RefreshConfigFromFile()
+{
+	char configFilePath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FC_CONFIGFILEPATH);
+
+	if (!FileExists(configFilePath))
+		CreateConfigFile();
+
+	if (modelConfig != null)
+		delete modelConfig;
+
+	modelConfig = ReadModelsFromConfig();
+	if (!modelConfig.JumpToKey("models"))
+		PrintToServer("Warning: FakeClass: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
+}
+
+/**
  * Creates a config file with the correct format.
  * @param addClasses Add the classes & their models to the config file by default.
  */
@@ -718,7 +794,6 @@ void CreateConfigFile(bool addClasses=true)
 
 /**
  * Reads the models configuration. Assumes it is created (if it isn't it will return an empty KV.)
- * 
  * @return A KeyValues of the models (root node "FakeclassModels", models stored in key "models")
  */
 KeyValues ReadModelsFromConfig()
