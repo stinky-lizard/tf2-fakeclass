@@ -41,6 +41,12 @@ public Plugin myinfo =
 	url = "freak.tf2.host"
 };
 
+
+/*
+ FORWARDS
+ =======================================================
+ */
+
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	// No need for the old GetGameFolderName setup.
@@ -158,6 +164,37 @@ public void OnClientDisconnect(int client)
 	RemoveSkin(client);
 }
 
+public void OnEntityDestroyed(int entity)
+{
+	bool entFound = false;
+	int i = 0;
+
+	for (; i < sizeof(playerSkinItems); i++)
+	{
+		//this is called before the entity is actually removed i think
+		//and this is called when the round changes & the skin is removed!
+		//so we can re-enable the player on round change
+		if (EntRefToEntIndex(playerSkinItems[i]) == entity)
+		{
+			entFound = true;
+			break;
+		}
+	}
+
+	if (entFound)
+	{
+		//i is the player whose skin was destroyed
+		MakePlayerVisible(i);
+		playerSkinItems[i] = 0;
+	}
+}
+
+
+/*
+ CORE FUNCTIONS
+ =======================================
+ */
+
 /**
  * Creates & gives a wearable to a player.
  * @param target client ID of target.
@@ -209,31 +246,6 @@ int createWearable(int target, char[] model)
 	SetEntityModel(rSkinItem, model);
 
 	return rSkinItem;
-}
-
-public void OnEntityDestroyed(int entity)
-{
-	bool entFound = false;
-	int i = 0;
-
-	for (; i < sizeof(playerSkinItems); i++)
-	{
-		//this is called before the entity is actually removed i think
-		//and this is called when the round changes & the skin is removed!
-		//so we can re-enable the player on round change
-		if (EntRefToEntIndex(playerSkinItems[i]) == entity)
-		{
-			entFound = true;
-			break;
-		}
-	}
-
-	if (entFound)
-	{
-		//i is the player whose skin was destroyed
-		MakePlayerVisible(i);
-		playerSkinItems[i] = 0;
-	}
 }
 
 /**
@@ -354,22 +366,11 @@ void RemoveAnim(int client)
 	AcceptEntityInput(client, "SetCustomModel");
 }
 
-/**
- * Gets a value arg, performing user input checks along the way
- * @param args how many args are in the full command
- * @param i arg to get value of
- * @param path buffer to store value string into
- * @param pathsize size of path
- * @return one of GETPATHARG_ALREADYFILLED, GETPATHARG_NOVAL, or GOOD
- */
-FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
-{
-	if (path[0]) return GETPATHARG_ALREADYFILLED;
-	if (i > args || !checkArgIsVal(i)) return GETPATHARG_NOVAL;
 
-	GetCmdArg(i, path, pathsize);
-	return GOOD;
-}
+/*
+ INTERFACE FUNCTIONS
+ =============================================
+ */
 
 Action MainCommand(int client, int args)
 {
@@ -621,6 +622,12 @@ Action ManageCommand(int client, int args)
 	return Plugin_Handled;
 }
 
+
+/*
+ HELPER FUNCTIONS
+ ============================================
+ */
+
 bool GetTargetString(int client, int target, char[] buffer, int buffersize)
 {
 	if (client == target) strcopy(buffer, buffersize, "your");
@@ -632,6 +639,23 @@ bool GetTargetString(int client, int target, char[] buffer, int buffersize)
 		strcopy(buffer, buffersize, name);
 	}
 	return client == target;
+}
+
+/**
+ * Gets a value arg, performing user input checks along the way
+ * @param args how many args are in the full command
+ * @param i arg to get value of
+ * @param path buffer to store value string into
+ * @param pathsize size of path
+ * @return one of GETPATHARG_ALREADYFILLED, GETPATHARG_NOVAL, or GOOD
+ */
+FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
+{
+	if (path[0]) return GETPATHARG_ALREADYFILLED;
+	if (i > args || !checkArgIsVal(i)) return GETPATHARG_NOVAL;
+
+	GetCmdArg(i, path, pathsize);
+	return GOOD;
 }
 
 bool checkArgIsVal(int i)
@@ -753,6 +777,12 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 		return -1;
 	}
 }
+
+
+/*
+ CONFIG FUNCTIONS
+ ============================================
+ */
 
 /**
  * Refreshes the configuration from the config file. Creates one if necessary.
