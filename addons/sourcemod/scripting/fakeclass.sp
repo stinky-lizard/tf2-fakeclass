@@ -200,6 +200,12 @@ int createWearable(int target, char[] model)
 	
 	SetEntPropEnt(rSkinItem, Prop_Send, "m_hOwnerEntity", target);
 	
+	if (!CheckModelGood(model))
+	{
+		PrintToServer("Warning: FakeClass: A non-precached skin model was about to be used. This would've crashed the server. (Error 32)");
+		SetEntityModel(rSkinItem, "models/error.mdl");
+		return rSkinItem;
+	}
 	SetEntityModel(rSkinItem, model);
 
 	return rSkinItem;
@@ -331,6 +337,11 @@ bool RemoveSkin(int target)
 //set the client model, which dictates their animations (and appearance with no skin)
 void SetAnim(int client, char[] model)
 {
+	if (!CheckModelGood(model))
+	{
+		PrintToServer("Warning: FakeClass: A non-precached animation model was about to be used. This would've crashed the server. (Error 31)");
+		return;
+	}
 	SetVariantString(model);
 	AcceptEntityInput(client, "SetCustomModel");
 	SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 1);
@@ -362,7 +373,9 @@ FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
 
 Action MainCommand(int client, int args)
 {
-	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH], targetinput[256];
+	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH];
+	char skinName[PLATFORM_MAX_PATH], animName[PLATFORM_MAX_PATH];
+	char targetinput[256];
 	int target = client, resetMode;
 	bool useFullpaths = false, validArgEntered = false, reset = false;
 
@@ -379,7 +392,7 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for anim
 			i++;
-			FuncOutput out = GetPathArg(args, i, animPath, sizeof(animPath));
+			FuncOutput out = GetPathArg(args, i, animName, sizeof(animName));
 			if (out != GOOD)
 			{
 				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
@@ -395,7 +408,7 @@ Action MainCommand(int client, int args)
 			validArgEntered = true;
 			//read next cmd for skin
 			i++;
-			FuncOutput out = GetPathArg(args, i, skinPath, sizeof(skinPath));
+			FuncOutput out = GetPathArg(args, i, skinName, sizeof(skinName));
 			if (out != GOOD)
 			{
 				ReplyToCommand(client, out == GETPATHARG_NOVAL ? "Please enter a value for %s." : "You can't specify %s twice!", tmparg);
@@ -460,7 +473,7 @@ Action MainCommand(int client, int args)
 
 	if (reset)
 	{
-		if (animPath[0] || skinPath[0])
+		if (animName[0] || skinName[0])
 		{
 			ReplyToCommand(client, "Sorry, you can't set the animation or skin & reset it in the same operation.");
 			ReplyToCommand(client, "Please use only -anim/-skin or -reset.");
@@ -494,27 +507,30 @@ Action MainCommand(int client, int args)
 	//translate model names to paths
 	if (!useFullpaths)
 	{
-		if (animPath[0])
+		if (animName[0])
 		{
-			char modelname[PLATFORM_MAX_PATH];
-			strcopy(modelname, sizeof(modelname), animPath);
-			if (!modelConfig.GetString(modelname, animPath, sizeof(animPath)))
+			if (!modelConfig.GetString(animName, animPath, sizeof(animPath)))
 			{
-				ReplyToCommand(client, "Sorry, we couldn't find your animation model (%s) in our list. Check your spelling?", modelname);
+				ReplyToCommand(client, "Sorry, we couldn't find your animation model (%s) in our list. Check your spelling?", animName);
 				animPath = "";
+				animName = "";
 			}
 			
 		}
-		if (skinPath[0])
+		if (skinName[0])
 		{
-			char modelname[PLATFORM_MAX_PATH];
-			strcopy(modelname, sizeof(modelname), skinPath);
-			if (!modelConfig.GetString(modelname, skinPath, sizeof(skinPath)))
+			if (!modelConfig.GetString(skinName, skinPath, sizeof(skinPath)))
 			{
-				ReplyToCommand(client, "Sorry, we couldn't find your skin model (%s) in our list. Check your spelling?", modelname);
+				ReplyToCommand(client, "Sorry, we couldn't find your skin model (%s) in our list. Check your spelling?", skinName);
 				skinPath = "";
+				skinName = "";
 			}
 		}
+	}
+	else
+	{
+		if (animName[0]) animPath = animName;
+		if (skinName[0]) skinPath = skinName;
 	}
 
 	//check if the models are good
@@ -557,9 +573,7 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
 		else
 		{
-			ReplaceString(animPath, sizeof(animPath), "models/player/", "");
-			ReplaceString(animPath, sizeof(animPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s animations to \"%s\"", targetString, animPath);
+			ReplyToCommand(client, "Successfully set %s animations to \"%s\"", targetString, animName);
 		}
 
 	}
@@ -574,10 +588,7 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
 		else
 		{
-			//TODO fix this for new thing
-			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
-			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s skin to \"%s\"", targetString, skinPath);
+			ReplyToCommand(client, "Successfully set %s skin to \"%s\"", targetString, skinName);
 		}
 	}
 
@@ -600,6 +611,7 @@ Action ManageCommand(int client, int args)
 	{
 		RefreshConfigFromFile();
 		ReplyToCommand(client, "Configuration refreshed from file.");
+		ReplyToCommand(client, "Map will need to be changed to precache any new models.");
 	}
 	else
 	{
@@ -805,4 +817,9 @@ KeyValues ReadModelsFromConfig()
 	KeyValues models = new KeyValues("FakeclassModels");
 	models.ImportFromFile(filePath);
 	return models;
+}
+
+bool CheckModelGood(char[] model)
+{
+	return IsModelPrecached(model);
 }
