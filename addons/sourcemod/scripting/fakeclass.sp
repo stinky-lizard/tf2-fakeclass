@@ -2,11 +2,12 @@
 #include <tf2_stocks>
 // ^ tf2_stocks.inc itself includes sdktools.inc and tf2.inc
 #include <tf2items>
+#include <sdkhooks>
 
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.1"
 
 
 #define EF_BONEMERGE 0x001
@@ -24,6 +25,10 @@ enum FuncOutput
 	GETPATHARG_ALREADYFILLED,
 	GETPATHARG_NOVAL
 }
+
+Handle hDummyItemView = null;
+Handle hEquipWearable = null;
+int playerSkinItems[MAXPLAYERS + 2];
 
 public Plugin myinfo = 
 {
@@ -43,10 +48,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		SetFailState("This plugin was made for use with Team Fortress 2 only.");
 	}
 } 
-
-Handle hDummyItemView = null;
-Handle hEquipWearable = null;
-int playerSkinItems[MAXPLAYERS + 1];
 
 public void OnPluginStart()
 {
@@ -87,6 +88,26 @@ public void OnPluginStart()
 	
 }
 
+//Remove any skins from players (since they're items, they stay after) & re-enable any players
+public void OnPluginEnd()
+{
+	for (int i = 0; i < sizeof(playerSkinItems); i++)
+	{
+		if (playerSkinItems[i])
+		{
+			//there's a skin, whether it's real or deleted somehow
+			RemoveSkin(i);
+			PrintToChat(i, "FakeClass is being unloaded or reloaded. Your skin has been removed (but feel free to re-apply it!)");
+		}
+	}
+}
+
+//Remove any skins from players that disconnect
+public void OnClientDisconnect(int client)
+{
+	RemoveSkin(client);
+}
+
 //Creates & gives a wearable to a player.
 //@param target client ID of target.
 //@param model full path to model.
@@ -100,9 +121,7 @@ int createWearable(int target, char[] model)
 	//create item that will get skin
 	int iSkinItem = TF2Items_GiveNamedItem(target, hDummyItemView);
 	
-	//save skin item
 	int rSkinItem = EntIndexToEntRef(iSkinItem);
-	playerSkinItems[target] = rSkinItem;
 
 	float pos[3];
 	GetClientAbsOrigin(target, pos);
@@ -115,6 +134,7 @@ int createWearable(int target, char[] model)
 	SetEntProp(iSkinItem, Prop_Send, "m_iTeamNum", team);
 	SetEntPropFloat(rSkinItem, Prop_Send, "m_flPlaybackRate", 1.0);
 	
+	//give effects - bonemerge, animations, shadow
 	int effects = GetEntProp(rSkinItem, Prop_Send, "m_fEffects");
 	effects |= EF_BONEMERGE|EF_BONEMERGE_FASTCULL;
 	effects |= EF_PARENT_ANIMATES;	
@@ -133,6 +153,54 @@ int createWearable(int target, char[] model)
 	return rSkinItem;
 }
 
+public void OnEntityDestroyed(int entity)
+{
+	bool entFound = false;
+	int i = 0;
+
+	for (; i < sizeof(playerSkinItems); i++)
+	{
+		//this is called before the entity is actually removed i think
+		//and this is called when the round changes & the skin is removed!
+		//so we can re-enable the player on round change
+		if (EntRefToEntIndex(playerSkinItems[i]) == entity)
+		{
+			entFound = true;
+			break;
+		}
+	}
+
+	if (entFound)
+	{
+		//i is the player whose skin was destroyed
+		MakePlayerVisible(i);
+		playerSkinItems[i] = 0;
+	}
+}
+
+//Makes a player invisible.
+//Exactly the reverse of MakePlayerVisible.
+//@param target Client ID of target.
+void MakePlayerInvisible(int target)
+{
+	SetEntityRenderMode(target, RENDER_NONE);
+	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
+	tarEffects |= (EF_NOSHADOW|EF_NORECEIVESHADOW);
+	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
+
+}
+
+//Makes a player visible.
+//Exactly the reverse of MakePlayerInvisible.
+//@param target Client ID of target.
+void MakePlayerVisible(int target)
+{
+	SetEntityRenderMode(target, RENDER_NORMAL);
+	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
+	tarEffects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW); //enable shadow
+	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
+}
+
 //set the player's skin.
 //creates an entity that acts as the skin and attaches it to the player,
 //also makes the player invisible
@@ -144,16 +212,16 @@ FuncOutput SetSkin(int target, char[] skinModel)
 
 	int rSkinItem = createWearable(target, skinModel);
 	if (rSkinItem == -1) return SETSKIN_TARGETNOTEAM;
+	playerSkinItems[target] = rSkinItem;
 	
 	//make player (i.e. anim model) invisible
-	SetEntityRenderMode(target, RENDER_NONE);
-	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
-	tarEffects |= (EF_NOSHADOW|EF_NORECEIVESHADOW);
-	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
-	
+	MakePlayerInvisible(target);
+
 	//make skin item visible
-	SetEntityRenderMode(rSkinItem, RENDER_TRANSCOLOR);
-	SetEntityRenderColor(rSkinItem, 255, 255, 255, 255);
+	SetEntityRenderMode(rSkinItem, RENDER_NORMAL);
+	//Q: arthurdead's plugins use this, reason?
+	// SetEntityRenderMode(rSkinItem, RENDER_TRANSCOLOR);
+	// SetEntityRenderColor(rSkinItem, 255, 255, 255, 255);
 	
 	//equip skin
 	SDKCall(hEquipWearable, target, rSkinItem);
@@ -183,10 +251,7 @@ stock int GetSkin(int target)
 bool RemoveSkin(int target)
 {
 	//make player anim model visible
-	SetEntityRenderMode(target, RENDER_NORMAL);
-	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
-	tarEffects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW); //enable shadow
-	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
+	MakePlayerVisible(target);
 	
 	//delete skin
 	int index = EntRefToEntIndex(playerSkinItems[target]);
