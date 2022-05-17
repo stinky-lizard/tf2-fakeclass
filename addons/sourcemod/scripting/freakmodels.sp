@@ -599,9 +599,10 @@ Action MainCommand(int client, int args)
 
 Action ManageCommand(int client, int args)
 {
+
 	if (args < 1)
 	{
-		ReplyToCommand(client, "Manage command options: refreshconfig");
+		ManageCommandHelp(client);
 		return Plugin_Handled;
 	}
 
@@ -613,6 +614,10 @@ Action ManageCommand(int client, int args)
 		RefreshConfigFromFile();
 		ReplyToCommand(client, "Configuration refreshed from file.");
 		ReplyToCommand(client, "Map will need to be changed to precache any new models.");
+	}
+	else if (StrEqual(operation, "help", false))
+	{
+		ManageCommandHelp(client);
 	}
 	else
 	{
@@ -685,20 +690,24 @@ Action TimedReply(Handle timer, Handle hndl)
 	
 	switch(list.Get(1))
 	{
-		case 1: { PrintToConsole(client, "Use freakmodel to change the model or animations of a player."); }
-		case 2: { PrintToConsole(client, "Enter -skin <class> or -model <class> to set the model of a player to a class's."); }
-		case 3: { PrintToConsole(client, "Enter -anim <class> to set the animations of a player to a class's."); }
+		case 1:  { PrintToConsole(client, "Use freakmodel to change the model or animations of a player."); }
+		case 2:  { PrintToConsole(client, "Important options: "); }
+		case 3:  { PrintToConsole(client, "- Enter -skin <model> or -model <model> to set the appearance of a player to a model."); }
+		case 4:  { PrintToConsole(client, "- Enter -anim <model> to set the animations of a player to a model's."); }
 		// case 4: { PrintToConsole(client, "Enter -reset [anim|model] to reset the target's animation/model. If [anim|model] is omitted both will be reset."); }
-		case 4: { PrintToConsole(client, "Enter -reset to reset the target's animation & skin."); }
-		case 5: { PrintToConsole(client, "--------------------------------"); }
-		case 6: { PrintToConsole(client, "Enter -fullpath to use the path to a model instead of a class. This requires knowledge of Source model paths & locations."); }
-		case 7: { PrintToConsole(client, "Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
-		case 8: { PrintToConsole(client, "Enter -help to print this dialogue in your console."); }
-		case 9: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
-		case 10: { PrintToConsole(client, "--------------------------------"); }
-		case 11:
+		case 5:  { PrintToConsole(client, "- Enter -reset to reset a player's animation & skin."); }
+		case 6:  { PrintToConsole(client, "--------------------------------"); }
+		case 7:  { PrintToConsole(client, "Less important options: "); }
+		case 8:  { PrintToConsole(client, "- Enter -fullpath to use the path to a model instead of a name. This requires knowledge of Source model paths & locations."); }
+		case 9:  { PrintToConsole(client, "- Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
+		case 10: { PrintToConsole(client, "- Enter -help to print this dialogue in your console."); }
+		case 11: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
+		case 12: { PrintToConsole(client, "--------------------------------"); }
+		case 13: { PrintToConsole(client, "Model names & their associated models are defined by the server operator. By default, you can use the classes (scout, medic, etc.), but there may be more!"); }
+		case 14: { PrintToConsole(client, "--------------------------------"); }
+		case 15:
 		{
-			PrintToConsole(client, "For example: inputting 'freakmodel -s heavy -t bob' will set bob's model to heavy, without changing their animations. Inputting 'freakmodel -r' will reset your own model and animations.");
+			PrintToConsole(client, "For example: inputting 'freakmodel -s heavy -t bob' will set bob's model to heavy, without changing their animations; inputting 'freakmodel -r' will reset your own model and animations.");
 			delete list;
 			return Plugin_Handled;
 		}
@@ -736,6 +745,13 @@ void PrintHelp(int client)
 	
 	
 }
+
+void ManageCommandHelp(int client)
+{
+	ReplyToCommand(client, "Printing FreakModels manage command options.");
+	ReplyToCommand(client, "- refreshconfig: Refreshes the model configuration from file. Map will need to be changed to precache & use any new models.");
+}
+
 
 bool IsValidClient(int client) { return client > 0 && client <= MaxClients && IsClientInGame(client); }
 
