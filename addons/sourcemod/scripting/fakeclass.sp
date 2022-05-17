@@ -16,6 +16,8 @@
 #define EF_NOSHADOW 0x010
 #define EF_NORECEIVESHADOW 0x040
 
+#define FC_CONFIGFILEPATH "configs/fakeclass.models.txt"
+
 //this is just for clarity of what numbers mean what codes
 enum FuncOutput
 {
@@ -27,6 +29,7 @@ enum FuncOutput
 
 Handle hDummyItemView = null;
 Handle hEquipWearable = null;
+KeyValues modelConfig = null;
 int playerSkinItems[MAXPLAYERS + 2];
 
 public Plugin myinfo = 
@@ -85,8 +88,28 @@ public void OnPluginStart()
 	}
 	delete hGameConf;
 	
+	//model configs
+	char configFilePath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FC_CONFIGFILEPATH);
+
+	if (!FileExists(configFilePath))
+		CreateConfigFile();
+
+	modelConfig = ReadModelsFromConfig();
+	if (!modelConfig.JumpToKey("models"))
+		PrintToServer("Warning: FakeClass: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
+
 	RegConsoleCmd("fakeclass", MainCommand);
 	
+}
+
+//precache models found in the config file
+public void OnMapStart()
+{
+	/**
+	 * @note Precache your models, sounds, etc. here!
+	 * Not in OnConfigsExecuted! Doing so leads to issues.
+	 */
 }
 
 //Remove any skins from players (since they're items, they stay after) & re-enable any players
@@ -550,14 +573,6 @@ bool checkArgIsVal(int i)
 	return (arg[0] != '-');
 }
 
-public void OnMapStart()
-{
-	/**
-	 * @note Precache your models, sounds, etc. here!
-	 * Not in OnConfigsExecuted! Doing so leads to issues.
-	 */
-}
-
 Action TimedReply(Handle timer, Handle hndl)
 {
 	
@@ -668,4 +683,51 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 		ReplyToCommand(client, "Sorry, something went wrong. Try again? (Error code 10)");
 		return -1;
 	}
+}
+
+/**
+ * Creates a config file with the correct format.
+ * @param addClasses Add the classes & their models to the config file by default.
+ */
+void CreateConfigFile(bool addClasses=true)
+{
+	char filePath[PLATFORM_MAX_PATH];
+
+	BuildPath(Path_SM, filePath, sizeof(filePath), FC_CONFIGFILEPATH);
+
+	KeyValues models = new KeyValues("FakeclassModels");
+	models.JumpToKey("models", true);
+
+	if (addClasses)
+	{
+		models.SetString("scout", "models/player/scout.mdl");
+		models.SetString("soldier", "models/player/soldier.mdl");
+		models.SetString("pyro", "models/player/pyro.mdl");
+		models.SetString("demoman", "models/player/demo.mdl");
+		models.SetString("demo", "models/player/demo.mdl"); //for backwards compat
+		models.SetString("heavy", "models/player/heavy.mdl");
+		models.SetString("engineer", "models/player/engineer.mdl");
+		models.SetString("medic", "models/player/medic.mdl");
+		models.SetString("sniper", "models/player/sniper.mdl");
+		models.SetString("spy", "models/player/spy.mdl");
+	}
+
+	models.Rewind();
+	models.ExportToFile(filePath);
+}
+
+/**
+ * Reads the models configuration. Assumes it is created (if it isn't it will return an empty KV.)
+ * 
+ * @return A KeyValues of the models (root node "FakeclassModels", models stored in key "models")
+ */
+KeyValues ReadModelsFromConfig()
+{
+	char filePath[PLATFORM_MAX_PATH];
+
+	BuildPath(Path_SM, filePath, sizeof(filePath), FC_CONFIGFILEPATH);
+
+	KeyValues models = new KeyValues("FakeclassModels");
+	models.ImportFromFile(filePath);
+	return models;
 }
