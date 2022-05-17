@@ -78,11 +78,12 @@ public void OnPluginStart()
 	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Virtual, "CBasePlayer::EquipWearable");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	hEquipWearable = EndPrepSDKCall();
-	delete hGameConf;
 	if(hEquipWearable == null) {
 		SetFailState("FakeClass: Failed to create SDKCall for CBasePlayer::EquipWearable.");
+		delete hGameConf;
 		return;
 	}
+	delete hGameConf;
 	
 	RegConsoleCmd("fakeclass", MainCommand);
 	
@@ -501,9 +502,9 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
 		else
 		{
-			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
-			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString );
+			ReplaceString(animPath, sizeof(animPath), "models/player/", "");
+			ReplaceString(animPath, sizeof(animPath), ".mdl", "");
+			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString, animPath);
 		}
 
 	}
@@ -520,7 +521,7 @@ Action MainCommand(int client, int args)
 		{
 			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
 			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
-			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString );
+			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString, skinPath);
 		}
 	}
 
