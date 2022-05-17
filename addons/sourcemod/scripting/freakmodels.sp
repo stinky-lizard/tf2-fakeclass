@@ -105,7 +105,13 @@ public void OnPluginStart()
 public void OnMapStart()
 {
 	//first go to the first model name
-	if (!modelConfig.GotoFirstSubKey(false)) return; //there are no defined models
+	if (!modelConfig.GotoFirstSubKey(false))
+	{
+		//there are no defined models
+		LogMessage("Warning: FreakModels: There are no models defined in the configuration file. Consider adding some, or deleting the file to re-initialize it.");
+		PrintToServer("Warning: FreakModels: There are no models defined in the configuration file. Consider adding some, or deleting the file to re-initialize it.");
+		return;
+	} 
 	
 	char curModelName[PLATFORM_MAX_PATH];
 	char curModelPath[PLATFORM_MAX_PATH];
@@ -140,7 +146,6 @@ public void OnMapStart()
 	while(modelConfig.GotoNextKey(false));
 
 	modelConfig.Rewind();
-	modelConfig.JumpToKey("models");
 
 }
 
@@ -510,8 +515,8 @@ Action MainCommand(int client, int args)
 	{
 		if (animName[0])
 		{
-			
-			if (!modelConfig.GetString(animName, animPath, sizeof(animPath)))
+			ToLowerCase(animName, sizeof(animName)); //make model names case-agnostic
+			if (!GetModelFromConfig(animName, animPath, sizeof(animPath)))
 			{
 				ReplyToCommand(client, "Sorry, we couldn't find your animation model (%s) in our list. Check your spelling?", animName);
 				animPath = "";
@@ -521,7 +526,8 @@ Action MainCommand(int client, int args)
 		}
 		if (skinName[0])
 		{
-			if (!modelConfig.GetString(skinName, skinPath, sizeof(skinPath)))
+			ToLowerCase(animName, sizeof(animName));
+			if (!GetModelFromConfig(skinName, skinPath, sizeof(skinPath)))
 			{
 				ReplyToCommand(client, "Sorry, we couldn't find your skin model (%s) in our list. Check your spelling?", skinName);
 				skinPath = "";
@@ -642,15 +648,17 @@ void RefreshConfigFromFile()
 	char configFilePath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FM_CONFIGFILEPATH);
 
-	if (!FileExists(configFilePath))
-		CreateConfigFile();
+	if (!FileExists(configFilePath)) CreateConfigFile();
 
-	if (modelConfig != null)
-		delete modelConfig;
+	if (modelConfig != null) delete modelConfig;
 
 	modelConfig = ReadModelsFromConfig();
+
 	if (!modelConfig.JumpToKey("models"))
-		PrintToServer("Warning: FreakModels: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
+		//there is no models section
+		PrintToServer("Warning: FreakModels: Failed to read from config file. Consider checking the file, or deleting the file to initialize it.");
+
+	modelConfig.Rewind();
 }
 
 /**
@@ -697,6 +705,40 @@ KeyValues ReadModelsFromConfig()
 	KeyValues models = new KeyValues("FreakModels");
 	models.ImportFromFile(filePath);
 	return models;
+}
+
+/**
+ * Gets a model from the configuration, by name.
+ * __This will rewind the config to the root node.__
+ * 
+ * @param name         Name of the model to get.
+ * @param path         Buffer to store the path to the model in.
+ * @param pathsize     Size of the path buffer.
+ * @return             _true_ if a model was successfully found. _false_ if no model was found.
+ */
+bool GetModelFromConfig(char[] name, char[] path, int pathsize)
+{
+	if (modelConfig.NodesInStack() > 0)
+		modelConfig.Rewind();
+	
+	modelConfig.JumpToKey("models");
+
+
+	if (!modelConfig.JumpToKey(name))
+	{
+		//this key does not exist
+		modelConfig.Rewind();
+		return false;
+	}
+	else
+	{
+		//this key exists
+		modelConfig.GoBack();
+		//goddammit vscode says this returns a bool but it doesn't. wtf
+		modelConfig.GetString(name, path, pathsize, "models/error.mdl");
+		modelConfig.Rewind();
+		return true;
+	}
 }
 
 bool CheckModelGood(char[] model)
@@ -871,3 +913,11 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 	}
 }
 
+void ToLowerCase(char[] str, int strsize)
+{
+	for (int i = 0; i < strsize; i++)
+	{
+		if (str[i])
+			str[i] = CharToLower(str[i]);
+	}
+}
