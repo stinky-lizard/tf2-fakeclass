@@ -501,7 +501,9 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
 		else
 		{
-			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString ); //TODO get class name from model name
+			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
+			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
+			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString );
 		}
 
 	}
@@ -516,7 +518,9 @@ Action MainCommand(int client, int args)
 			ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
 		else
 		{
-			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString ); //TODO get class name from model name
+			ReplaceString(skinPath, sizeof(skinPath), "models/player/", "");
+			ReplaceString(skinPath, sizeof(skinPath), ".mdl", "");
+			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString );
 		}
 	}
 
