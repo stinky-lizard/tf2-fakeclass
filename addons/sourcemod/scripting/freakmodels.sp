@@ -16,7 +16,7 @@
 #define EF_NOSHADOW 0x010
 #define EF_NORECEIVESHADOW 0x040
 
-#define FC_CONFIGFILEPATH "configs/freakmodels.models.txt"
+#define FM_CONFIGFILEPATH "configs/freakmodels.models.txt"
 
 //this is just for clarity of what numbers mean what codes
 enum FuncOutput
@@ -47,7 +47,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	EngineVersion g_engineversion = GetEngineVersion();
 	if (g_engineversion != Engine_TF2)
 	{
-		SetFailState("This plugin was made for use with Team Fortress 2 only.");
+		SetFailState("FreakModels was made for use with Team Fortress 2 only.");
 	}
 } 
 
@@ -760,7 +760,7 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 void RefreshConfigFromFile()
 {
 	char configFilePath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FC_CONFIGFILEPATH);
+	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FM_CONFIGFILEPATH);
 
 	if (!FileExists(configFilePath))
 		CreateConfigFile();
@@ -781,7 +781,7 @@ void CreateConfigFile(bool addClasses=true)
 {
 	char filePath[PLATFORM_MAX_PATH];
 
-	BuildPath(Path_SM, filePath, sizeof(filePath), FC_CONFIGFILEPATH);
+	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
 
 	KeyValues models = new KeyValues("FreakModels");
 	models.JumpToKey("models", true);
@@ -812,7 +812,7 @@ KeyValues ReadModelsFromConfig()
 {
 	char filePath[PLATFORM_MAX_PATH];
 
-	BuildPath(Path_SM, filePath, sizeof(filePath), FC_CONFIGFILEPATH);
+	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
 
 	KeyValues models = new KeyValues("FreakModels");
 	models.ImportFromFile(filePath);
