@@ -510,6 +510,7 @@ Action MainCommand(int client, int args)
 	{
 		if (animName[0])
 		{
+			
 			if (!modelConfig.GetString(animName, animPath, sizeof(animPath)))
 			{
 				ReplyToCommand(client, "Sorry, we couldn't find your animation model (%s) in our list. Check your spelling?", animName);
@@ -625,6 +626,82 @@ Action ManageCommand(int client, int args)
 	}
 
 	return Plugin_Handled;
+}
+
+
+/*
+ CONFIG FUNCTIONS
+ ============================================
+ */
+
+/**
+ * Refreshes the configuration from the config file. Creates one if necessary.
+ */
+void RefreshConfigFromFile()
+{
+	char configFilePath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FM_CONFIGFILEPATH);
+
+	if (!FileExists(configFilePath))
+		CreateConfigFile();
+
+	if (modelConfig != null)
+		delete modelConfig;
+
+	modelConfig = ReadModelsFromConfig();
+	if (!modelConfig.JumpToKey("models"))
+		PrintToServer("Warning: FreakModels: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
+}
+
+/**
+ * Creates a config file with the correct format.
+ * @param addClasses Add the classes & their models to the config file by default.
+ */
+void CreateConfigFile(bool addClasses=true)
+{
+	char filePath[PLATFORM_MAX_PATH];
+
+	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
+
+	KeyValues models = new KeyValues("FreakModels");
+	models.JumpToKey("models", true);
+
+	if (addClasses)
+	{
+		models.SetString("scout", "models/player/scout.mdl");
+		models.SetString("soldier", "models/player/soldier.mdl");
+		models.SetString("pyro", "models/player/pyro.mdl");
+		models.SetString("demoman", "models/player/demo.mdl");
+		models.SetString("demo", "models/player/demo.mdl"); //for backwards compat
+		models.SetString("heavy", "models/player/heavy.mdl");
+		models.SetString("engineer", "models/player/engineer.mdl");
+		models.SetString("medic", "models/player/medic.mdl");
+		models.SetString("sniper", "models/player/sniper.mdl");
+		models.SetString("spy", "models/player/spy.mdl");
+	}
+
+	models.Rewind();
+	models.ExportToFile(filePath);
+}
+
+/**
+ * Reads the models configuration. Assumes it is created (if it isn't it will return an empty KV.)
+ * @return A KeyValues of the models (root node "FreakModels", models stored in key "models")
+ */
+KeyValues ReadModelsFromConfig()
+{
+	char filePath[PLATFORM_MAX_PATH];
+
+	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
+
+	KeyValues models = new KeyValues("FreakModels");
+	models.ImportFromFile(filePath);
+	return models;
+}
+
+bool CheckModelGood(char[] model)
+{
+	return IsModelPrecached(model);
 }
 
 
@@ -794,78 +871,3 @@ int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNa
 	}
 }
 
-
-/*
- CONFIG FUNCTIONS
- ============================================
- */
-
-/**
- * Refreshes the configuration from the config file. Creates one if necessary.
- */
-void RefreshConfigFromFile()
-{
-	char configFilePath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, configFilePath, sizeof(configFilePath), FM_CONFIGFILEPATH);
-
-	if (!FileExists(configFilePath))
-		CreateConfigFile();
-
-	if (modelConfig != null)
-		delete modelConfig;
-
-	modelConfig = ReadModelsFromConfig();
-	if (!modelConfig.JumpToKey("models"))
-		PrintToServer("Warning: FreakModels: Failed to read from config file, or there are no models defined in it. Consider adding some, or deleting the file to initialize it.");
-}
-
-/**
- * Creates a config file with the correct format.
- * @param addClasses Add the classes & their models to the config file by default.
- */
-void CreateConfigFile(bool addClasses=true)
-{
-	char filePath[PLATFORM_MAX_PATH];
-
-	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
-
-	KeyValues models = new KeyValues("FreakModels");
-	models.JumpToKey("models", true);
-
-	if (addClasses)
-	{
-		models.SetString("scout", "models/player/scout.mdl");
-		models.SetString("soldier", "models/player/soldier.mdl");
-		models.SetString("pyro", "models/player/pyro.mdl");
-		models.SetString("demoman", "models/player/demo.mdl");
-		models.SetString("demo", "models/player/demo.mdl"); //for backwards compat
-		models.SetString("heavy", "models/player/heavy.mdl");
-		models.SetString("engineer", "models/player/engineer.mdl");
-		models.SetString("medic", "models/player/medic.mdl");
-		models.SetString("sniper", "models/player/sniper.mdl");
-		models.SetString("spy", "models/player/spy.mdl");
-	}
-
-	models.Rewind();
-	models.ExportToFile(filePath);
-}
-
-/**
- * Reads the models configuration. Assumes it is created (if it isn't it will return an empty KV.)
- * @return A KeyValues of the models (root node "FreakModels", models stored in key "models")
- */
-KeyValues ReadModelsFromConfig()
-{
-	char filePath[PLATFORM_MAX_PATH];
-
-	BuildPath(Path_SM, filePath, sizeof(filePath), FM_CONFIGFILEPATH);
-
-	KeyValues models = new KeyValues("FreakModels");
-	models.ImportFromFile(filePath);
-	return models;
-}
-
-bool CheckModelGood(char[] model)
-{
-	return IsModelPrecached(model);
-}
