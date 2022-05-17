@@ -7,8 +7,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.1"
-
+#define PLUGIN_VERSION "1.2a"
 
 #define EF_BONEMERGE 0x001
 #define EF_BONEMERGE_FASTCULL 0x080
@@ -68,9 +67,10 @@ public void OnPluginStart()
 	TF2Items_SetNumAttributes(hDummyItemView, 0);
 
 	
-	GameData hGameConf = new GameData("fakeclass");
+	GameData hGameConf = new GameData("fakeclass.data");
 	if(hGameConf == null) {
-		SetFailState("FakeClass: Gamedata not found.");
+		SetFailState("FakeClass: Gamedata (addons/sourcemod/gamedata/fakeclass.data.txt) not found.");
+		delete hGameConf;
 		return;
 	}
 	
@@ -108,10 +108,12 @@ public void OnClientDisconnect(int client)
 	RemoveSkin(client);
 }
 
-//Creates & gives a wearable to a player.
-//@param target client ID of target.
-//@param model full path to model.
-//@return __REFERENCE__ ID of created entity, or -1 if error (not in game).
+/**
+ * Creates & gives a wearable to a player.
+ * @param target client ID of target.
+ * @param model full path to model.
+ * @return __REFERENCE__ ID of created entity, or -1 if error (not in game).
+ */
 int createWearable(int target, char[] model)
 {
 	//are they in game?
@@ -178,9 +180,11 @@ public void OnEntityDestroyed(int entity)
 	}
 }
 
-//Makes a player invisible.
-//Exactly the reverse of MakePlayerVisible.
-//@param target Client ID of target.
+/**
+ * Makes a player invisible.
+ * Exactly the reverse of MakePlayerVisible.
+ * @param target Client ID of target.
+ */
 void MakePlayerInvisible(int target)
 {
 	SetEntityRenderMode(target, RENDER_NONE);
@@ -190,9 +194,11 @@ void MakePlayerInvisible(int target)
 
 }
 
-//Makes a player visible.
-//Exactly the reverse of MakePlayerInvisible.
-//@param target Client ID of target.
+/**
+ * Makes a player visible.
+ * Exactly the reverse of MakePlayerInvisible.
+ * @param target Client ID of target.
+ */
 void MakePlayerVisible(int target)
 {
 	SetEntityRenderMode(target, RENDER_NORMAL);
@@ -201,10 +207,12 @@ void MakePlayerVisible(int target)
 	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
 }
 
-//set the player's skin.
-//creates an entity that acts as the skin and attaches it to the player,
-//also makes the player invisible
-//@return one of SetSkinOutput
+/**
+ * set the player's skin.
+ * creates an entity that acts as the skin and attaches it to the player,
+ * also makes the player invisible
+ * @return one of SetSkinOutput
+ */
 FuncOutput SetSkin(int target, char[] skinModel)
 {
 	//remove skin if it exists
@@ -229,9 +237,11 @@ FuncOutput SetSkin(int target, char[] skinModel)
 	return GOOD;
 }
 
-//Gets the target's skin and validates it exists.
-//@param target client ID of target.
-//@return Entity index of skin, or 0 if none exists.
+/**
+ * Gets the target's skin and validates it exists.
+ * @param target client ID of target.
+ * @return Entity index of skin, or 0 if none exists.
+ */
 stock int GetSkin(int target)
 {
 	int iSkin = EntRefToEntIndex(playerSkinItems[client]);
@@ -245,9 +255,11 @@ stock int GetSkin(int target)
 	else return iSkin;
 }
 
-//Removes a skin from a player, deleting the skin entity and making the player animation model visible.
-//@param target Client ID of the target player.
-//@return true if a skin was removed, false if there was no skin to begin with.
+/**
+ * Removes a skin from a player, deleting the skin entity and making the player animation model visible.
+ * @param target Client ID of the target player.
+ * @return true if a skin was removed, false if there was no skin to begin with.
+ */
 bool RemoveSkin(int target)
 {
 	//make player anim model visible
@@ -281,12 +293,14 @@ void RemoveAnim(int client)
 	AcceptEntityInput(client, "SetCustomModel");
 }
 
-//Gets a value arg, performing user input checks along the way
-//@param args how many args are in the full command
-//@param i arg to get value of
-//@param path buffer to store value string into
-//@param pathsize size of path
-//@return one of GETPATHARG_ALREADYFILLED, GETPATHARG_NOVAL, or GOOD
+/**
+ * Gets a value arg, performing user input checks along the way
+ * @param args how many args are in the full command
+ * @param i arg to get value of
+ * @param path buffer to store value string into
+ * @param pathsize size of path
+ * @return one of GETPATHARG_ALREADYFILLED, GETPATHARG_NOVAL, or GOOD
+ */
 FuncOutput GetPathArg(int args, int i, char[] path, int pathsize)
 {
 	if (path[0]) return GETPATHARG_ALREADYFILLED;
@@ -397,8 +411,8 @@ Action MainCommand(int client, int args)
 	{
 		if (animPath[0] || skinPath[0])
 		{
-			ReplyToCommand(client, "Sorry, you can't set the animation or model & reset it in the same operation.");
-			ReplyToCommand(client, "Please use only -anim/-model or -reset.");
+			ReplyToCommand(client, "Sorry, you can't set the animation or skin & reset it in the same operation.");
+			ReplyToCommand(client, "Please use only -anim/-skin or -reset.");
 			return Plugin_Handled;
 		}
 
@@ -409,7 +423,7 @@ Action MainCommand(int client, int args)
 				//reset both
 				RemoveAnim(target);
 				RemoveSkin(target);
-				ReplyToCommand(client, "Successfully reset your model and animations.");
+				ReplyToCommand(client, "Successfully reset your skin and animations.");
 			}
 			case 1: 
 			{
@@ -421,7 +435,7 @@ Action MainCommand(int client, int args)
 			{
 				//reset model
 				RemoveSkin(target);
-				ReplyToCommand(client, "Successfully reset your model.");
+				ReplyToCommand(client, "Successfully reset your skin.");
 			}
 		}
 	}
@@ -451,37 +465,66 @@ Action MainCommand(int client, int args)
 	//check if the models are good
 	if (animPath[0] && !IsModelPrecached(animPath))
 	{
-		if (useFullpaths) ReplyToCommand(client, "Unknown animation model!");
-		else ReplyToCommand(client, "Sorry, your animation class isn't a real class. Check your spelling?");
+		if (useFullpaths)
+		{
+			if (FileExists(animPath, true)) 
+				ReplyToCommand(client, "Sorry, your animation model is not precached and we cannot use it.");
+			else 
+				ReplyToCommand(client, "Unknown animation model!");
+		} 
+		else 
+			ReplyToCommand(client, "Sorry, your animation class isn't a real class. Check your spelling?");
 		animPath = "";
 	}
 	if (skinPath[0] && !IsModelPrecached(skinPath))
 	{
-		if (useFullpaths) ReplyToCommand(client, "Unknown skin model!");
-		else ReplyToCommand(client, "Sorry, your skin class isn't a real class. Check your spelling?");
+		if (useFullpaths)
+		{
+			if (FileExists(skinPath, true)) 
+				ReplyToCommand(client, "Sorry, your skin model is not precached and we cannot use it.");
+			else 
+				ReplyToCommand(client, "Unknown skin model!");
+		} 
+		else 
+			ReplyToCommand(client, "Sorry, your skin class isn't a real class. Check your spelling?");
 		skinPath = "";
 	}
+
+	char targetString[65];
 
 	if (animPath[0])
 	{
 		SetAnim(target, animPath);
+
+		GetTargetString(client, target, targetString, sizeof(targetString));
+		if (useFullpaths) 
+			ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
+		else
+		{
+			ReplyToCommand(client, "Successfully set %s animations to the %s's.", targetString ); //TODO get class name from model name
+		}
+
 	}
 	if (skinPath[0])
 	{
-		if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM)
-		{
-			char targetString[64];
-			getTargetString(client, target, targetString, sizeof(targetString));
+		GetTargetString(client, target, targetString, sizeof(targetString));
+		
+		if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM) 
 			ReplyToCommand(client, "You can't set %s skin; %s aren't in the game!", targetString, (client == target) ? "you" : "they");
+		//successfully set the skin confirmations:
+		else if (useFullpaths) 
+			ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
+		else
+		{
+			ReplyToCommand(client, "Successfully set %s skin to the %s.", targetString ); //TODO get class name from model name
 		}
-
 	}
 
 	return Plugin_Handled;
 
 }
 
-bool getTargetString(int client, int target, char[] buffer, int buffersize)
+bool GetTargetString(int client, int target, char[] buffer, int buffersize)
 {
 	if (client == target) strcopy(buffer, buffersize, "your");
 	else
@@ -510,31 +553,6 @@ public void OnMapStart()
 	 */
 }
 
-
-stock void GetModelForPlayerClass(int client, char[] model, int length)
-{
-	TFClassType class = TF2_GetPlayerClass(client);
-	GetModelForClass(class, model, length);
-}
-
-stock void GetModelForClass(TFClassType class, char[] model, int length)
-{
-	switch(class)
-	{
-		case TFClass_Unknown: { strcopy(model, length, "models/error.mdl"); }
-		case TFClass_Engineer: { strcopy(model, length, "models/player/engineer.mdl"); }
-		case TFClass_Scout: { strcopy(model, length, "models/player/scout.mdl"); }
-		case TFClass_Medic: { strcopy(model, length, "models/player/medic.mdl"); }
-		case TFClass_Soldier: { strcopy(model, length, "models/player/soldier.mdl"); }
-		case TFClass_Heavy: { strcopy(model, length, "models/player/heavy.mdl"); }
-		case TFClass_DemoMan: { strcopy(model, length, "models/player/demo.mdl"); }
-		case TFClass_Spy: { strcopy(model, length, "models/player/spy.mdl"); }
-		case TFClass_Sniper: { strcopy(model, length, "models/player/sniper.mdl"); }
-		case TFClass_Pyro: { strcopy(model, length, "models/player/pyro.mdl"); }
-	}
-}
-
-
 Action TimedReply(Handle timer, Handle hndl)
 {
 	
@@ -557,24 +575,26 @@ Action TimedReply(Handle timer, Handle hndl)
 		case 1: { PrintToConsole(client, "Use fakeclass to change the model or animations of a player."); }
 		case 2: { PrintToConsole(client, "Enter -skin <class> or -model <class> to set the model of a player to a class's."); }
 		case 3: { PrintToConsole(client, "Enter -anim <class> to set the animations of a player to a class's."); }
-		case 4: { PrintToConsole(client, "Enter -fullpath to use the path to a model instead of a class. This requires knowledge of Source model paths & locations."); }
-		case 5: { PrintToConsole(client, "Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
-		case 6: { PrintToConsole(client, "Enter -reset [anim|model] to reset the target's animation/model. If [anim|model] is omitted both will be reset."); }
-		case 7: { PrintToConsole(client, "Enter -help to print this dialogue in your console."); }
-		case 8: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
-		case 9: { PrintToConsole(client, "-----"); }
-		case 10:
+		// case 4: { PrintToConsole(client, "Enter -reset [anim|model] to reset the target's animation/model. If [anim|model] is omitted both will be reset."); }
+		case 4: { PrintToConsole(client, "Enter -reset to reset the target's animation & skin."); }
+		case 5: { PrintToConsole(client, "--------------------------------"); }
+		case 6: { PrintToConsole(client, "Enter -fullpath to use the path to a model instead of a class. This requires knowledge of Source model paths & locations."); }
+		case 7: { PrintToConsole(client, "Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
+		case 8: { PrintToConsole(client, "Enter -help to print this dialogue in your console."); }
+		case 9: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
+		case 10: { PrintToConsole(client, "--------------------------------"); }
+		case 11:
 		{
 			PrintToConsole(client, "For example: inputting 'fakeclass -s heavy -t bob' will set bob's model to heavy, without changing their animations. Inputting 'fakeclass -r' will reset your own model and animations.");
 			delete list;
-			return Plugin_Stop;
+			return Plugin_Handled;
 		}
 	}
 	list.Set(1, list.Get(1) + 1);
-	return Plugin_Stop;
+	return Plugin_Handled;
 }
 
-public void PrintHelp(int client)
+void PrintHelp(int client)
 {
 	ReplyToCommand(client, "Printing help in your console.");
 	//this is horrible but ReplyToCommand doesn't want to print in the right order without it :(
@@ -606,10 +626,12 @@ public void PrintHelp(int client)
 
 bool IsValidClient(int client) { return client > 0 && client <= MaxClients && IsClientInGame(client); }
 
-//gets client id of specified username. If none is found, returns -1.
-//@param client Client ID of caller.
-//@param user String to search against.
-//@param foundName Buffer string to store found username.
+/**
+ * gets client id of specified username. If none is found, returns -1.
+ * @param client Client ID of caller.
+ * @param user String to search against.
+ * @param foundName Buffer string to store found username.
+ */
 int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNameSize)
 {
 	//find a player to match the entered user
