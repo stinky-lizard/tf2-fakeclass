@@ -230,7 +230,7 @@ int createWearable(int target, char[] model)
 	
 	if (!CheckModelGood(model))
 	{
-		LogMessage("Warning: A non-precached skin model was about to be used. This would've crashed the server. (Error 32)");
+		LogMessage("Warning: A non-precached skin model was about to be used. This would've caused a crash. (Error 32)");
 		SetEntityModel(rSkinItem, "models/error.mdl");
 		return rSkinItem;
 	}
@@ -342,7 +342,7 @@ void SetAnim(int client, char[] model)
 {
 	if (!CheckModelGood(model))
 	{
-		LogMessage("Warning: A non-precached animation model was about to be used. This would've crashed the server. (Error 31)");
+		LogMessage("Warning: A non-precached animation model was about to be used. This would've caused a crash. (Error 31)");
 		return;
 	}
 	SetVariantString(model);
