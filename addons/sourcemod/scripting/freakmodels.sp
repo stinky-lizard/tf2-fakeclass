@@ -7,7 +7,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.2.1"
+#define PLUGIN_VERSION "1.2.2"
 
 #define EF_BONEMERGE 0x001
 #define EF_BONEMERGE_FASTCULL 0x080
@@ -27,10 +27,28 @@ enum FuncOutput
 	GETPATHARG_NOVAL
 }
 
+enum struct ModelChangeData
+{
+	bool isReset;
+	bool useFullpaths;
+
+	int targets[MAXPLAYERS];
+	int numTargets;
+
+	char animPath[PLATFORM_MAX_PATH];
+	char animName[PLATFORM_MAX_PATH];
+
+	char skinPath[PLATFORM_MAX_PATH];
+	char skinName[PLATFORM_MAX_PATH];
+
+}
+
+ModelChangeData g_clientsData[MAXPLAYERS];
+
 Handle hDummyItemView = null;
 Handle hEquipWearable = null;
 KeyValues config = null;
-int playerSkinItems[MAXPLAYERS + 2];
+int playerSkinItems[MAXPLAYERS];
 
 public Plugin myinfo = 
 {
@@ -362,6 +380,106 @@ void RemoveAnim(int client)
 	AcceptEntityInput(client, "SetCustomModel");
 }
 
+void SetModelsFromData(int client)
+{
+	ModelChangeData data;
+	data = g_clientsData[client];
+
+
+	int resetMode = 0; //TODO add resetMdoe func
+
+	char animPath[PLATFORM_MAX_PATH];
+	animPath = data.animPath;
+
+	char skinPath[PLATFORM_MAX_PATH];
+	skinPath = data.skinPath;
+
+	char clientName[65];
+	GetClientName(client, clientName, sizeof(clientName));
+
+	for (int i = 0; i < data.numTargets; i++)
+	{
+		int target = data.targets[i];
+
+		char targetString[65];
+		GetTargetString(client, target, targetString, sizeof(targetString));
+
+		if (data.isReset)
+		{
+			switch (resetMode)
+			{
+				case 0:
+				{
+					//reset both
+					RemoveAnim(target);
+					RemoveSkin(target);
+					ReplyToCommand(client, "Successfully reset %s skin and animations.", targetString);
+
+					if (client != target) PrintToChat(target, "%s reset your skin and animations.", clientName);
+				}
+				case 1: 
+				{
+					//reset anim
+					RemoveAnim(target);
+					ReplyToCommand(client, "Successfully reset %s animations.", targetString);
+
+					if (client != target) PrintToChat(target, "%s reset your animations.", clientName);
+				}
+				case 2:
+				{
+					//reset model
+					RemoveSkin(target);
+					ReplyToCommand(client, "Successfully reset %s skin.", targetString);
+					
+					if (client != target) PrintToChat(target, "%s reset your skin.", clientName);
+				}
+			}
+		}
+
+
+		if (animPath[0])
+		{
+			SetAnim(target, animPath);
+
+			GetTargetString(client, target, targetString, sizeof(targetString));
+			if (data.useFullpaths) 
+			{
+				ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
+
+				if (client != target) PrintToChat(target, "%s set your animation model to %s.", clientName, animPath);
+			}
+			else
+			{
+				ReplyToCommand(client, "Successfully set %s animations to \"%s\"", targetString, data.animName);
+
+				if (client != target) PrintToChat(target, "%s set your animations to %s.", clientName, data.animName);
+			}
+
+		}
+		if (skinPath[0])
+		{
+			GetTargetString(client, target, targetString, sizeof(targetString));
+			
+			if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM) 
+				ReplyToCommand(client, "You can't set %s skin; %s aren't in the game!", targetString, (client == target) ? "you" : "they");
+			//successfully set the skin confirmations:
+			else if (data.useFullpaths) 
+			{
+				ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
+
+				if (client != target) PrintToChat(target, "%s set your skin model to %s.", clientName, skinPath);
+			}
+			else
+			{
+				ReplyToCommand(client, "Successfully set %s skin to \"%s\"", targetString, data.skinName);
+
+				if (client != target) PrintToChat(target, "%s set your skin to %s.", clientName, data.skinName);
+			}
+		}
+	}
+
+	ResetData(client);
+}
 
 /*
  INTERFACE FUNCTIONS
@@ -370,12 +488,16 @@ void RemoveAnim(int client)
 
 Action MainCommand(int client, int args)
 {
+
+	ResetData(client);
+
 	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH];
 	char skinName[PLATFORM_MAX_PATH], animName[PLATFORM_MAX_PATH];
 	char targetinput[256];
-	int target = client, resetMode;
-	bool useFullpaths = false, validArgEntered = false, reset = false;
+	bool useFullpaths = false, validArgEntered = false, reset = false, doAll = false, targetMode = false;
 
+	int targetsFound;
+	int targetList[MAXPLAYERS];
 	//first read the cmd args to figure out what to do
 
 	char tmparg[128];
@@ -419,6 +541,7 @@ Action MainCommand(int client, int args)
 		)
 		{
 			validArgEntered = true;
+			targetMode = true;
 			//read next cmd for player
 			i++;
 			FuncOutput out = GetPathArg(args, i, targetinput, sizeof(targetinput));
@@ -428,9 +551,17 @@ Action MainCommand(int client, int args)
 				return Plugin_Handled;
 			}
 
-			//get the player they actually want
-			char targetName[65];
-			target = GetClientFromUsername(client, targetinput, targetName, sizeof(targetName));
+			//get the player(s) they actually want
+			bool foundOne = GetClientsFromUsername(client, targetinput, targetsFound, targetList, sizeof(targetList));
+
+			if (!foundOne) 
+			{
+				return Plugin_Handled;
+			}
+		}
+		else if (StrEqual(tmparg, "-confirm", false))
+		{
+			doAll = true;
 		}
 		else if 
 		(
@@ -466,39 +597,11 @@ Action MainCommand(int client, int args)
 	}
 
 
-	//now actually do the stuff
-
-	if (reset)
+	if (reset && (animName[0] || skinName[0]))
 	{
-		if (animName[0] || skinName[0])
-		{
-			ReplyToCommand(client, "Sorry, you can't set the animation or skin & reset it in the same operation.");
-			ReplyToCommand(client, "Please use only -anim/-skin or -reset.");
-			return Plugin_Handled;
-		}
-
-		switch (resetMode)
-		{
-			case 0:
-			{
-				//reset both
-				RemoveAnim(target);
-				RemoveSkin(target);
-				ReplyToCommand(client, "Successfully reset your skin and animations.");
-			}
-			case 1: 
-			{
-				//reset anim
-				RemoveAnim(target);
-				ReplyToCommand(client, "Successfully reset your animations.");
-			}
-			case 2:
-			{
-				//reset model
-				RemoveSkin(target);
-				ReplyToCommand(client, "Successfully reset your skin.");
-			}
-		}
+		ReplyToCommand(client, "Sorry, you can't set the animation or skin & reset it in the same operation.");
+		ReplyToCommand(client, "Please use only -anim/-skin or -reset.");
+		return Plugin_Handled;
 	}
 
 	//translate model names to paths
@@ -565,38 +668,85 @@ Action MainCommand(int client, int args)
 		skinPath = "";
 	}
 
-	char targetString[65];
+	//now actually do the stuff
 
-	if (animPath[0])
+	g_clientsData[client].animPath = animPath;
+	g_clientsData[client].skinPath = skinPath;
+	g_clientsData[client].animName = animName;
+	g_clientsData[client].skinName = skinName;
+
+	g_clientsData[client].isReset = reset;
+	g_clientsData[client].useFullpaths = useFullpaths;
+
+	if (!targetMode && client > 0)
 	{
-		SetAnim(target, animPath);
-
-		GetTargetString(client, target, targetString, sizeof(targetString));
-		if (useFullpaths) 
-			ReplyToCommand(client, "Successfully set %s animation model to %s.", targetString, animPath);
-		else
-		{
-			ReplyToCommand(client, "Successfully set %s animations to \"%s\"", targetString, animName);
-		}
-
+		targetsFound = 1;
+		targetList[0] = client;
 	}
-	if (skinPath[0])
+	else if (!targetMode && client < 1)
 	{
-		GetTargetString(client, target, targetString, sizeof(targetString));
-		
-		if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM) 
-			ReplyToCommand(client, "You can't set %s skin; %s aren't in the game!", targetString, (client == target) ? "you" : "they");
-		//successfully set the skin confirmations:
-		else if (useFullpaths) 
-			ReplyToCommand(client, "Successfully set %s skin model to %s.", targetString, skinPath);
+		ReplyToCommand(client, "Please specify a player.");
+		ResetData(client);
+		return Plugin_Handled;
+	}
+
+
+	if (targetsFound < 1)
+	{
+		ReplyToCommand(client, "Sorry, your target doesn't match any players.");
+		ResetData(client);
+	}
+	else if (targetsFound > 1 && !doAll)
+	{
+		ReplyToCommand(client, "You targeted more than one player. Are you sure?");
+		if (client == 0)
+		{
+			ReplyToCommand(client, "If you are, please input this command again with \"-confirm\" added.");
+		}
 		else
 		{
-			ReplyToCommand(client, "Successfully set %s skin to \"%s\"", targetString, skinName);
+			Menu menu = new Menu(ConfirmAllMenuHandler, MENU_ACTIONS_DEFAULT);
+			menu.SetTitle("Are you sure?");
+			menu.AddItem("yes", "YES ✔ ✔ ✔");
+			menu.AddItem("no",  "NO X X X");
+			menu.ExitButton = false;
+			menu.Display(client, MENU_TIME_FOREVER);
 		}
+	}
+	else
+	{
+		g_clientsData[client].targets = targetList;
+		g_clientsData[client].numTargets = targetsFound;
+		SetModelsFromData(client);
 	}
 
 	return Plugin_Handled;
 
+}
+
+public int ConfirmAllMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch(action)
+	{
+		case MenuAction_End:
+		{
+		delete menu;
+		}
+		case MenuAction_Select:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+
+			if (StrEqual(info, "yes"))
+			{
+				SetModelsFromData(param1);
+			}
+			else
+			{
+				ResetData(param1);
+			}
+		}
+	}
 }
 
 Action ManageCommand(int client, int args)
@@ -949,12 +1099,12 @@ Action TimedReply(Handle timer, Handle hndl)
 		case 7:  { PrintToConsole(client, "Less important options: "); }
 		case 8:  { PrintToConsole(client, "- Enter -fullpath to use the path to a model instead of a name. This requires knowledge of Source model paths & locations."); }
 		case 9:  { PrintToConsole(client, "- Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
-		case 10: { PrintToConsole(client, "- Enter -help to print this dialogue in your console."); }
-		case 11: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
-		case 12: { PrintToConsole(client, "--------------------------------"); }
-		case 13: { PrintToConsole(client, "Model names & their associated models are defined by the server operator. By default, you can use the classes (scout, medic, etc.), but there may be more!"); }
-		case 14: { PrintToConsole(client, "--------------------------------"); }
-		case 15:
+		case 11: { PrintToConsole(client, "- Enter -help to print this dialogue in your console."); }
+		case 12: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
+		case 13: { PrintToConsole(client, "--------------------------------"); }
+		case 14: { PrintToConsole(client, "Model names & their associated models are defined by the server operator. By default, you can use the classes (scout, medic, etc.), but there may be more!"); }
+		case 15: { PrintToConsole(client, "--------------------------------"); }
+		case 16:
 		{
 			PrintToConsole(client, "For example: inputting 'freakmodel -s heavy -t bob' will set bob's model to heavy, without changing their animations; inputting 'freakmodel -r' will reset your own model and animations.");
 			delete list;
@@ -1006,40 +1156,64 @@ bool IsValidClient(int client) { return client > 0 && client <= MaxClients && Is
 
 /**
  * gets client id of specified username. If none is found, returns -1.
+ * @note these docs are outdated.
  * @param client Client ID of caller.
  * @param user String to search against.
  * @param foundName Buffer string to store found username.
  */
-int GetClientFromUsername(int client, char[] user, char[] foundName, int foundNameSize)
+bool GetClientsFromUsername(int client, char[] user, int& targetsFound, int[] targetList, const int targetListSize)
 {
 	//find a player to match the entered user
-	int targetList[MAXPLAYERS];
 	bool tn_is_ml;
-	
+	char foundName[65];
+
 	//trim quotes in case they added them
 	StripQuotes(user);
+
+	int deadTargetsFound;
+	int[] deadTargetList = new int[targetListSize];
 	
-	int targetFound = ProcessTargetString(user, client, targetList, MAXPLAYERS, COMMAND_FILTER_ALIVE, foundName, foundNameSize, tn_is_ml);
-	
-	if (targetFound <= 0)
+	targetsFound = ProcessTargetString(user, client, targetList, targetListSize, COMMAND_FILTER_ALIVE, foundName, sizeof(foundName), tn_is_ml);
+
+	deadTargetsFound = ProcessTargetString(user, client, deadTargetList, targetListSize, COMMAND_FILTER_DEAD, foundName, sizeof(foundName), tn_is_ml);
+
+	if (deadTargetsFound > 0)
+	{
+		//add all dead targets to alive targets
+		for (int i = 0; i < deadTargetsFound; i++)
+		{
+			targetList[targetsFound + i] = deadTargetList[i];
+		}
+		if (targetsFound < 1) targetsFound = deadTargetsFound;
+		else targetsFound += deadTargetsFound;
+	}
+
+	if (targetsFound < 1)
 	{
 		//couldn't find one
-		ReplyToTargetError(client, targetFound);
-		return -1;
+		ReplyToTargetError(client, targetsFound);
+		return false;
 	}
 	else
 	{
+		bool atLeastOneValid = false;
 		//could find one
-		for (int i = 0; i < targetFound; i++)
+		for (int i = 0; i < targetsFound; i++)
 		{
-			if (IsValidClient(targetList[i]))
+			if (!IsValidClient(targetList[i]))
 			{
-				return targetList[i];
+				targetList[i] = 0;
 			}
+			else atLeastOneValid = true;
+			
 		}
-		//shouldn't happen - processtargetstring should have checked they're all valid
-		ReplyToCommand(client, "Sorry, something went wrong. Try again? (Error code 10)");
-		return -1;
+		if (!atLeastOneValid)
+		{
+			//shouldn't happen - processtargetstring should have checked they're all valid
+			ReplyToCommand(client, "Sorry, something went wrong. Try again? (Error code 10)");
+			return false;
+		}
+		return true;
 	}
 }
 
@@ -1050,4 +1224,21 @@ void ToLowerCase(char[] str, int strsize)
 		if (str[i])
 			str[i] = CharToLower(str[i]);
 	}
+}
+
+void ResetData(int client)
+{
+	g_clientsData[client].useFullpaths = false;
+	g_clientsData[client].isReset = false;
+	g_clientsData[client].animPath = "";
+	g_clientsData[client].skinPath = "";
+	g_clientsData[client].animName = "";
+	g_clientsData[client].animName = "";
+
+	for (int i = 0; i < g_clientsData[client].numTargets; i++)
+	{
+		g_clientsData[client].targets[i] = 0;
+	}
+	g_clientsData[client].numTargets = 0;
+	
 }
