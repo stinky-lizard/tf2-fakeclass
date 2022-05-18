@@ -7,7 +7,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.2"
+#define PLUGIN_VERSION "1.2.1"
 
 #define EF_BONEMERGE 0x001
 #define EF_BONEMERGE_FASTCULL 0x080
