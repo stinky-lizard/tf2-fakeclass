@@ -654,6 +654,16 @@ void RefreshConfigFromFile()
 		LogMessage("Warning: Failed to read from config file. Consider checking the file, or deleting the file to initialize it.");
 
 	config.Rewind();
+
+	//TEMPORARY
+	config.JumpToKey("comments");
+	if (!config.GetNum("RequiredAdmin"))
+	{
+		LogMessage("Warning: admin requirements aren't defined in the config file. Defaulting to ADMFLAG_GENERIC.");
+		config.SetNum("RequiredAdmin", ADMFLAG_GENERIC);
+	}
+
+	config.Rewind();
 }
 
 /**
@@ -716,10 +726,14 @@ void CreateConfigFile(bool addClasses=true)
 	models.SetString("Keep in mind all model names are case-insensitive, for QoL of the user.", "-");
 	models.SetString("Also, each model name has to be unique. If there are two models with the same name, only the first one found will be used.", "-");
 	models.SetString("Finally...", "No forward slashes in model names. It just doesn't work. I cannot change this. Sorry!");
+
+	//TEMPORARY
 	models.SetString("---", "-");
 	models.SetString("TEMPORARY:", "This next line is a temporary setting. You can change it and reload the plugin to change the required admin levels.");
 	models.SetString("Check this link:", "https://wiki.alliedmods.net/Checking_Admin_Flags_(SourceMod_Scripting)");
 	models.SetNum("RequiredAdmin", ADMFLAG_GENERIC);
+
+
 	models.Rewind();
 
 
