@@ -129,7 +129,7 @@ public void OnMapStart()
 	if (!modelsDefined)
 	{
 		//there are no defined models
-		LogMessage("Warning: FreakModels: There are no models defined in the configuration file. Consider adding some, or deleting the file to re-initialize it.");
+		LogMessage("Warning: There are no models defined in the configuration file. Consider adding some, or deleting the file to re-initialize it.");
 		return;
 	} 
 	
@@ -230,7 +230,7 @@ int createWearable(int target, char[] model)
 	
 	if (!CheckModelGood(model))
 	{
-		PrintToServer("Warning: FreakModels: A non-precached skin model was about to be used. This would've crashed the server. (Error 32)");
+		LogMessage("Warning: A non-precached skin model was about to be used. This would've crashed the server. (Error 32)");
 		SetEntityModel(rSkinItem, "models/error.mdl");
 		return rSkinItem;
 	}
@@ -342,7 +342,7 @@ void SetAnim(int client, char[] model)
 {
 	if (!CheckModelGood(model))
 	{
-		PrintToServer("Warning: FreakModels: A non-precached animation model was about to be used. This would've crashed the server. (Error 31)");
+		LogMessage("Warning: A non-precached animation model was about to be used. This would've crashed the server. (Error 31)");
 		return;
 	}
 	SetVariantString(model);
@@ -642,7 +642,7 @@ void RefreshConfigFromFile()
 
 	if (!config.JumpToKey("named_models"))
 		//there is no models section
-		PrintToServer("Warning: FreakModels: Failed to read from config file. Consider checking the file, or deleting the file to initialize it.");
+		LogMessage("Warning: Failed to read from config file. Consider checking the file, or deleting the file to initialize it.");
 
 	config.Rewind();
 }
@@ -734,9 +734,23 @@ bool SearchForModel(char[] name, char[] path, int pathsize, bool intheweeds = fa
 	{
 		if (config.JumpToKey(name))
 		{
-			//model is here!
-			config.GetString(NULL_STRING, path, pathsize);
-			return true;
+			//we jumped to something with the models name...
+			if (config.GetDataType(NULL_STRING) == KvData_String)
+			{
+				//model is here!
+				config.GetString(NULL_STRING, path, pathsize);
+				return true;
+			}
+			else if (config.GetDataType(NULL_STRING) == KvData_None)
+			{
+				//we jumped to a section with the model's name
+				config.GoBack();
+			}
+			else
+			{
+				//it's set incorrectly...
+				LogMessage("Warning: Model %s in the config file is not set to a model path.", name);
+			}
 		}
 		//model isn't here, go thru all the subsections
 		if (config.GotoFirstSubKey())
@@ -767,19 +781,14 @@ bool GetModelFromConfig(char[] name, char[] path, int pathsize)
 	config.JumpToKey("named_models");
 
 	//it seems no matter the project, you will eventually have to use theoretical concepts taught in CS classes.
-	//for me, this moment is now with search algorithms.
+	//for me, this moment is now with search algorithms. i was never good with them
 	//let's just do a simple depth-first search; there will not be enough models & groups to make it matter.
 
-	if (SearchForModel(name, path, pathsize))
-	{
-		config.Rewind();
-		return true;
-	}
-	else
-	{
-		config.Rewind();
-		return true;
-	}
+	bool out = SearchForModel(name, path, pathsize);
+
+	config.Rewind();
+	return out;
+	
 }
 
 bool CheckModelGood(char[] model)
@@ -823,7 +832,7 @@ bool PrecacheAllModelsInCurSection(bool intheweeds = false)
 				{
 					char curSectionName[PLATFORM_MAX_PATH];
 					config.GetSectionName(curSectionName, sizeof(curSectionName));
-					LogMessage("Warning: FreakModels: The model named %s in the config file does not correspond to a real file.", curSectionName);
+					LogMessage("Warning: The model named %s in the config file does not correspond to a real file.", curSectionName);
 					continue;
 				}
 
