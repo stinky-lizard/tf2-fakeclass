@@ -656,7 +656,7 @@ void RefreshConfigFromFile()
 	config.Rewind();
 
 	//TEMPORARY
-	config.JumpToKey("comments");
+	config.JumpToKey("comments", true);
 	if (!config.GetNum("RequiredAdmin"))
 	{
 		LogMessage("Warning: admin requirements aren't defined in the config file. Defaulting to ADMFLAG_GENERIC.");
