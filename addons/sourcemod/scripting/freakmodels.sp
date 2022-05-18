@@ -7,7 +7,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.2.2"
+#define PLUGIN_VERSION "1.2.2.1"
 
 #define EF_BONEMERGE 0x001
 #define EF_BONEMERGE_FASTCULL 0x080
@@ -120,6 +120,8 @@ public void OnPluginStart()
 	config.JumpToKey("comments");
 	int adm = config.GetNum("RequiredAdmin");
 
+	config.Rewind();
+
 	RegAdminCmd("freakmodel", MainCommand, adm);
 	RegAdminCmd("freakmodel_manage", ManageCommand, adm);
 	
@@ -131,6 +133,8 @@ public void OnMapStart()
 {
 
 	bool modelsDefined = false;
+
+	config.Rewind();
 
 	if (config.JumpToKey("named_models"))
 	{
@@ -153,7 +157,6 @@ public void OnMapStart()
 	{
 		//there are no defined models
 		LogMessage("Warning: There are no models defined in the configuration file. Consider adding some, or deleting the file to re-initialize it.");
-		return;
 	} 
 	
 }
@@ -981,7 +984,6 @@ bool CheckModelGood(char[] model)
 bool PrecacheAllModelsInCurSection(bool intheweeds = false)
 {
 	bool out = false;
-
 
 	do
 	{
