@@ -527,6 +527,10 @@ Action MainCommand(int client, int args)
 		if (skinName[0]) skinPath = skinName;
 	}
 
+	//correct \s to /s
+	ReplaceString(animPath, sizeof(animPath), "\\", "/");
+	ReplaceString(skinPath, sizeof(skinPath), "\\", "/");
+
 	//check if the models are good
 	if (animPath[0] && !IsModelPrecached(animPath))
 	{
