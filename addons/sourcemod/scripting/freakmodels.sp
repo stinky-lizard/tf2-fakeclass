@@ -58,6 +58,8 @@ KeyValues config = null;
 
 PlayerData g_playersData[MAXPLAYERS];
 
+ArrayList allWearables;
+
 public Plugin myinfo = 
 {
 	name = "FreakModels",
@@ -123,6 +125,12 @@ public void OnPluginStart()
 	//model configs
 	RefreshConfigFromFile();
 
+	//add cleanup stuff
+	allWearables = new ArrayList();
+
+	//TODO: TEST THIS!!!!!
+	CreateTimer(180.0, Timer_RegularCleanup, _, TIMER_REPEAT);
+
 	//get req admin flags
 	config.Rewind();
 	config.JumpToKey("comments");
@@ -181,6 +189,8 @@ public void OnPluginEnd()
 			PrintToChat(i, "FreakModels is being unloaded or reloaded. Your skin has been removed (but feel free to re-apply it!)");
 		}
 	}
+
+	DeleteAllWearables(false);
 }
 
 //Remove any skins from players that disconnect
@@ -217,7 +227,7 @@ void RagdollMade(int entity)
 
 }
 
-static Action ResetPlayerModelAfterDeath(Handle timer, int owner)
+public Action ResetPlayerModelAfterDeath(Handle timer, int owner)
 {
 	SetVariantString(g_playersData[owner].animPath);
 	AcceptEntityInput(owner, "SetCustomModel");
@@ -270,6 +280,8 @@ int CreateWearable(int target, char[] model)
 	int iSkinItem = TF2Items_GiveNamedItem(target, hDummyItemView);
 	
 	int rSkinItem = EntIndexToEntRef(iSkinItem);
+
+	allWearables.Push(rSkinItem);
 
 	float pos[3];
 	GetClientAbsOrigin(target, pos);
@@ -1124,7 +1136,7 @@ bool checkArgIsVal(int i)
 	return (arg[0] != '-');
 }
 
-Action TimedReply(Handle timer, Handle hndl)
+public Action TimedReply(Handle timer, Handle hndl)
 {
 	
 	//fuck this. replytocommand doesn't print in the right order :(
@@ -1295,4 +1307,51 @@ void ResetClientCommandData(int client)
 	}
 	g_clientsCommandData[client].numTargets = 0;
 	
+}
+
+public Action Timer_RegularCleanup(Handle timer)
+{
+	DeleteAllWearables();
+}
+
+void DeleteAllWearables(bool onlyLost = true)
+{
+	for (int i = 0; i < allWearables.Length; i++)
+	{
+		int rItem = allWearables.Get(i);
+		if ((onlyLost && ItemIsUsed(rItem)) || !onlyLost)
+		{
+			//should be removed
+			if (EntRefToEntIndex(rItem) != INVALID_ENT_REFERENCE)
+			{
+				//is already deleted
+				allWearables.Erase(i);
+			}
+			else
+			{
+				//is not already deleted
+				RemoveEntity(EntRefToEntIndex(rItem));
+				allWearables.Erase(i);
+			}
+		}
+	}
+}
+
+/**
+ * Checks if the item is used, meaning if it's referenced in g_playersData
+ * TODO: when addding cosmetics add checks for cosmetics
+ * @param itemReference     Param description
+ * @return                  Return description
+ */
+bool ItemIsUsed(const int itemReference)
+{
+
+	bool isUsed = false;
+
+	for(int i = 0; i < sizeof(g_playersData); i++)
+	{
+		if (itemReference == g_playersData[i].rSkinItem) isUsed = true;
+	}
+
+	return isUsed;
 }
