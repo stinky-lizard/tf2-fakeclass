@@ -43,12 +43,20 @@ enum struct ModelChangeData
 
 }
 
-ModelChangeData g_clientsData[MAXPLAYERS];
+enum struct PlayerData
+{
+	int rSkinItem;
+	char skinPath[PLATFORM_MAX_PATH];
+	char animPath[PLATFORM_MAX_PATH];
+}
+
+ModelChangeData g_clientsCommandData[MAXPLAYERS];
 
 Handle hDummyItemView = null;
 Handle hEquipWearable = null;
 KeyValues config = null;
-int playerSkinItems[MAXPLAYERS];
+
+PlayerData g_playersData[MAXPLAYERS];
 
 public Plugin myinfo = 
 {
@@ -164,9 +172,9 @@ public void OnMapStart()
 //Remove any skins from players (since they're items, they stay after) & re-enable any players
 public void OnPluginEnd()
 {
-	for (int i = 0; i < sizeof(playerSkinItems); i++)
+	for (int i = 0; i < sizeof(g_playersData); i++)
 	{
-		if (playerSkinItems[i])
+		if (g_playersData[i].rSkinItem)
 		{
 			//there's a skin, whether it's real or deleted somehow
 			RemoveSkin(i);
@@ -181,17 +189,51 @@ public void OnClientDisconnect(int client)
 	RemoveSkin(client);
 }
 
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if (StrEqual(classname, "tf_ragdoll"))
+	{	
+		RequestFrame(RagdollMade, entity);
+	}
+}
+
+void RagdollMade(int entity)
+{
+	int owner = GetEntProp(entity, Prop_Send, "m_iPlayerIndex");
+
+	PrintToChatAll("Setting ragdoll to %i's skin.", owner);
+
+	int iSkinItem = EntRefToEntIndex(g_playersData[owner].rSkinItem);
+	if (g_playersData[owner].rSkinItem && iSkinItem != INVALID_ENT_REFERENCE)
+	{
+		PrintToChatAll("(%s)", g_playersData[owner].skinPath);
+
+		SetVariantString(g_playersData[owner].skinPath);
+		AcceptEntityInput(owner, "SetCustomModel");
+
+		CreateTimer(0.1, ResetPlayerModelAfterDeath, owner);
+
+	}
+
+}
+
+static Action ResetPlayerModelAfterDeath(Handle timer, int owner)
+{
+	SetVariantString(g_playersData[owner].animPath);
+	AcceptEntityInput(owner, "SetCustomModel");
+}
+
 public void OnEntityDestroyed(int entity)
 {
 	bool entFound = false;
 	int i = 0;
-
-	for (; i < sizeof(playerSkinItems); i++)
+	
+	for (; i < sizeof(g_playersData); i++)
 	{
 		//this is called before the entity is actually removed i think
 		//and this is called when the round changes & the skin is removed!
 		//so we can re-enable the player on round change
-		if (EntRefToEntIndex(playerSkinItems[i]) == entity)
+		if (EntRefToEntIndex(g_playersData[i].rSkinItem) == entity)
 		{
 			entFound = true;
 			break;
@@ -202,7 +244,7 @@ public void OnEntityDestroyed(int entity)
 	{
 		//i is the player whose skin was destroyed
 		MakePlayerVisible(i);
-		playerSkinItems[i] = 0;
+		g_playersData[i].rSkinItem = 0;
 	}
 }
 
@@ -218,7 +260,7 @@ public void OnEntityDestroyed(int entity)
  * @param model full path to model.
  * @return __REFERENCE__ ID of created entity, or -1 if error (not in game).
  */
-int createWearable(int target, char[] model)
+int CreateWearable(int target, char[] model)
 {
 	//are they in game?
 	TFTeam team = TF2_GetClientTeam(target);
@@ -303,9 +345,11 @@ FuncOutput SetSkin(int target, char[] skinModel)
 	//remove skin if it exists
 	RemoveSkin(target);
 
-	int rSkinItem = createWearable(target, skinModel);
+	int rSkinItem = CreateWearable(target, skinModel);
 	if (rSkinItem == -1) return SETSKIN_TARGETNOTEAM;
-	playerSkinItems[target] = rSkinItem;
+	g_playersData[target].rSkinItem = rSkinItem;
+
+	strcopy(g_playersData[target].skinPath, PLATFORM_MAX_PATH, skinModel);
 	
 	//make player (i.e. anim model) invisible
 	MakePlayerInvisible(target);
@@ -329,7 +373,7 @@ FuncOutput SetSkin(int target, char[] skinModel)
  */
 stock int GetSkin(int target)
 {
-	int iSkin = EntRefToEntIndex(playerSkinItems[client]);
+	int iSkin = EntRefToEntIndex(g_playersData[client].rSkinItem);
 
 	if (iSkin == INVALID_ENT_REFERENCE)
 	{
@@ -351,15 +395,20 @@ bool RemoveSkin(int target)
 	MakePlayerVisible(target);
 	
 	//delete skin
-	int index = EntRefToEntIndex(playerSkinItems[target]);
-	if (playerSkinItems[target] && index != INVALID_ENT_REFERENCE)
+	int index = EntRefToEntIndex(g_playersData[target].rSkinItem);
+	if (g_playersData[target].rSkinItem && index != INVALID_ENT_REFERENCE)
 	{
 		AcceptEntityInput(index, "ClearParent");
 		TF2_RemoveWearable(target, index);
-		playerSkinItems[target] = 0;
+
+		//docs say TF2_RemoveWearable deletes it. hopefully this fixes the bug
+		RemoveEntity(g_playersData[target].rSkinItem);
+
+		g_playersData[target].rSkinItem = 0;
+		strcopy(g_playersData[target].skinPath, PLATFORM_MAX_PATH, "");
 		return true;
 	}
-	playerSkinItems[target] = 0;
+	g_playersData[target].rSkinItem = 0;
 	return false;
 }
 
@@ -374,19 +423,22 @@ void SetAnim(int client, char[] model)
 	SetVariantString(model);
 	AcceptEntityInput(client, "SetCustomModel");
 	SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 1);
+
+	strcopy(g_playersData[client].animPath, PLATFORM_MAX_PATH, model);
 }
 
 //reset the client model, which dictates their animations (and appearance with no skin)
-void RemoveAnim(int client)
+void RemoveAnim(int target)
 {
 	SetVariantString("");
-	AcceptEntityInput(client, "SetCustomModel");
+	AcceptEntityInput(target, "SetCustomModel");
+	strcopy(g_playersData[target].animPath, PLATFORM_MAX_PATH, "");
 }
 
 void SetModelsFromData(int client)
 {
 	ModelChangeData data;
-	data = g_clientsData[client];
+	data = g_clientsCommandData[client];
 
 
 	int resetMode = 0; //TODO add resetMdoe func
@@ -481,7 +533,7 @@ void SetModelsFromData(int client)
 		}
 	}
 
-	ResetData(client);
+	ResetClientCommandData(client);
 }
 
 /*
@@ -492,7 +544,7 @@ void SetModelsFromData(int client)
 Action MainCommand(int client, int args)
 {
 
-	ResetData(client);
+	ResetClientCommandData(client);
 
 	char skinPath[PLATFORM_MAX_PATH], animPath[PLATFORM_MAX_PATH];
 	char skinName[PLATFORM_MAX_PATH], animName[PLATFORM_MAX_PATH];
@@ -673,13 +725,13 @@ Action MainCommand(int client, int args)
 
 	//now actually do the stuff
 
-	g_clientsData[client].animPath = animPath;
-	g_clientsData[client].skinPath = skinPath;
-	g_clientsData[client].animName = animName;
-	g_clientsData[client].skinName = skinName;
+	g_clientsCommandData[client].animPath = animPath;
+	g_clientsCommandData[client].skinPath = skinPath;
+	g_clientsCommandData[client].animName = animName;
+	g_clientsCommandData[client].skinName = skinName;
 
-	g_clientsData[client].isReset = reset;
-	g_clientsData[client].useFullpaths = useFullpaths;
+	g_clientsCommandData[client].isReset = reset;
+	g_clientsCommandData[client].useFullpaths = useFullpaths;
 
 	if (!targetMode && client > 0)
 	{
@@ -689,7 +741,7 @@ Action MainCommand(int client, int args)
 	else if (!targetMode && client < 1)
 	{
 		ReplyToCommand(client, "Please specify a player.");
-		ResetData(client);
+		ResetClientCommandData(client);
 		return Plugin_Handled;
 	}
 
@@ -697,7 +749,7 @@ Action MainCommand(int client, int args)
 	if (targetsFound < 1)
 	{
 		ReplyToCommand(client, "Sorry, your target doesn't match any players.");
-		ResetData(client);
+		ResetClientCommandData(client);
 	}
 	else if (targetsFound > 1 && !doAll)
 	{
@@ -718,8 +770,8 @@ Action MainCommand(int client, int args)
 	}
 	else
 	{
-		g_clientsData[client].targets = targetList;
-		g_clientsData[client].numTargets = targetsFound;
+		g_clientsCommandData[client].targets = targetList;
+		g_clientsCommandData[client].numTargets = targetsFound;
 		SetModelsFromData(client);
 	}
 
@@ -746,7 +798,7 @@ public int ConfirmAllMenuHandler(Menu menu, MenuAction action, int param1, int p
 			}
 			else
 			{
-				ResetData(param1);
+				ResetClientCommandData(param1);
 			}
 		}
 	}
@@ -1228,19 +1280,19 @@ void ToLowerCase(char[] str, int strsize)
 	}
 }
 
-void ResetData(int client)
+void ResetClientCommandData(int client)
 {
-	g_clientsData[client].useFullpaths = false;
-	g_clientsData[client].isReset = false;
-	g_clientsData[client].animPath = "";
-	g_clientsData[client].skinPath = "";
-	g_clientsData[client].animName = "";
-	g_clientsData[client].animName = "";
+	g_clientsCommandData[client].useFullpaths = false;
+	g_clientsCommandData[client].isReset = false;
+	g_clientsCommandData[client].animPath = "";
+	g_clientsCommandData[client].skinPath = "";
+	g_clientsCommandData[client].animName = "";
+	g_clientsCommandData[client].skinName = "";
 
-	for (int i = 0; i < g_clientsData[client].numTargets; i++)
+	for (int i = 0; i < g_clientsCommandData[client].numTargets; i++)
 	{
-		g_clientsData[client].targets[i] = 0;
+		g_clientsCommandData[client].targets[i] = 0;
 	}
-	g_clientsData[client].numTargets = 0;
+	g_clientsCommandData[client].numTargets = 0;
 	
 }
