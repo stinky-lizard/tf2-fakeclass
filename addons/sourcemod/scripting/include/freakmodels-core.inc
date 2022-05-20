@@ -1,4 +1,15 @@
 
+#include <freakmodels-defs>
+
+#include <freakmodels-config>
+#include <freakmodels-util>
+
+#include <freakmodels-manage>
+#include <freakmodels-cleanup>
+
+// #include <freakmodels-ragdoll> //disabled for now, want to redo it
+
+
 /*
  * CORE FUNCTIONS
  * This file includes the main functions - 

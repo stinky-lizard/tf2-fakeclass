@@ -38,6 +38,7 @@ enum struct PlayerData
 	char animPath[PLATFORM_MAX_PATH];
 }
 
+//used globally - in many modules
 
 ModelChangeData g_clientsCommandData[MAXPLAYERS];
 
@@ -45,8 +46,15 @@ ModelChangeData g_clientsCommandData[MAXPLAYERS];
 
 PlayerData g_playersData[MAXPLAYERS];
 
-
 Handle g_hDummyItemView = null;
 Handle g_hEquipWearable = null;
-KeyValues config = null;
+
+//mainly used in/for cleanup module
+
 ArrayList allWearables = null;
+
+//mainly used in/for config module
+
+#define FM_CONFIGFILEPATH "configs/freakmodels.models.txt"
+
+KeyValues config = null;

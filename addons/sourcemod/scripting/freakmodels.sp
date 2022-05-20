@@ -4,15 +4,7 @@
 #include <tf2items>
 #include <sdkhooks>
 
-#include <freakmodels-defs>
 #include <freakmodels-core>
-
-#include <freakmodels-config>
-#include <freakmodels-util>
-
-#include <freakmodels-manage>
-#include <freakmodels-cleanup>
-// #include <freakmodels-ragdoll> //disabled for now, want to redo it
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -56,6 +48,7 @@ public void OnPluginStart()
 	
 	LoadTranslations("common.phrases");
 
+	//create the item to give
 	g_hDummyItemView = TF2Items_CreateItem(OVERRIDE_ALL|FORCE_GENERATION);
 	TF2Items_SetClassname(g_hDummyItemView, "tf_wearable");
 	TF2Items_SetItemIndex(g_hDummyItemView, -1); //Q: playermodel2 uses 65535. Is there a reason why?
@@ -63,7 +56,7 @@ public void OnPluginStart()
 	TF2Items_SetLevel(g_hDummyItemView, 0);
 	TF2Items_SetNumAttributes(g_hDummyItemView, 0);
 
-	
+	//prepare the EquipWearable function call
 	GameData hGameConf = new GameData("freakmodels.data");
 	if(hGameConf == null) {
 		SetFailState("FreakModels: Gamedata (addons/sourcemod/gamedata/freakmodels.data.txt) not found.");
@@ -85,7 +78,7 @@ public void OnPluginStart()
 	//model configs
 	RefreshConfigFromFile();
 
-	//add cleanup stuff
+	//cleanup stuff
 	allWearables = new ArrayList();
 
 	CreateTimer(180.0, Timer_RegularCleanup, _, TIMER_REPEAT);
@@ -106,7 +99,6 @@ public void OnPluginStart()
 //precache models found in the config file
 public void OnMapStart()
 {
-
 	bool modelsDefined = false;
 
 	config.Rewind();

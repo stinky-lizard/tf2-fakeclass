@@ -1,6 +1,4 @@
 
-#define FM_CONFIGFILEPATH "configs/freakmodels.models.txt"
-
 /*
  CONFIG FUNCTIONS
  ============================================

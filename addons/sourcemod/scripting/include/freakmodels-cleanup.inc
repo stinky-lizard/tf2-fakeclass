@@ -25,7 +25,7 @@ void DeleteAllWearables(bool onlyLost = true)
 			{
                 //TODO: check if this entity is worn by going thru every client and checking m_hMyWearables
                 //if it is, then use TF2_RemoveWearable
-                
+
 				//is not already deleted
 				if (IsValidEntity(rItem)) RemoveEntity(rItem);
 				allWearables.Erase(i);
