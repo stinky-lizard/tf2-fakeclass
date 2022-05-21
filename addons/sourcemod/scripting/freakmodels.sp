@@ -94,6 +94,7 @@ public void OnPluginStart()
 	RegAdminCmd("freakmodel_manage", ManageCommand, adm);
 	
 	RegAdminCmd("fakeclass", MainCommand, adm); //for backwards-compatibility QoL
+
 }
 
 //precache models found in the config file
@@ -141,7 +142,7 @@ public void OnPluginEnd()
 		}
 	}
 
-	DeleteAllWearables(false);
+	CleanupWearables(false);
 }
 
 //Remove any skins from players that disconnect
@@ -618,9 +619,6 @@ void PrintHelp(int client)
 	
 	
 }
-
-
-bool IsValidClient(int client) { return client > 0 && client <= MaxClients && IsClientInGame(client); }
 
 /**
  * gets client id of specified username. If none is found, returns -1.

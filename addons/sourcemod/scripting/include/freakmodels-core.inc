@@ -23,6 +23,8 @@
  */
 int CreateWearable(int target, char[] model)
 {
+	CheckClientValid(target);
+
 	//are they in game?
 	TFTeam team = TF2_GetClientTeam(target);
 	if (team != TFTeam_Blue && team != TFTeam_Red) return -1; //not in game
@@ -74,27 +76,32 @@ int CreateWearable(int target, char[] model)
  * Makes a player invisible.
  * Exactly the reverse of MakePlayerVisible.
  * @param target Client ID of target.
+ * @error if target is not a valid client index.
  */
-void MakePlayerInvisible(int target)
+bool MakePlayerInvisible(int target)
 {
+	CheckClientValid(target);
 	SetEntityRenderMode(target, RENDER_NONE);
 	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
 	tarEffects |= (EF_NOSHADOW|EF_NORECEIVESHADOW);
 	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
-
+	return true;
 }
 
 /**
  * Makes a player visible.
  * Exactly the reverse of MakePlayerInvisible.
  * @param target Client ID of target.
+ * @error if target is not a valid client index.
  */
-void MakePlayerVisible(int target)
+bool MakePlayerVisible(int target)
 {
+	CheckClientValid(target);
 	SetEntityRenderMode(target, RENDER_NORMAL);
 	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
 	tarEffects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW); //enable shadow
 	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
+	return true;
 }
 
 /**
@@ -105,6 +112,8 @@ void MakePlayerVisible(int target)
  */
 FuncOutput SetSkin(int target, char[] skinModel)
 {
+	CheckClientValid(target);
+
 	//remove skin if it exists
 	RemoveSkin(target);
 
@@ -130,30 +139,15 @@ FuncOutput SetSkin(int target, char[] skinModel)
 }
 
 /**
- * Gets the target's skin and validates it exists.
- * @param target client ID of target.
- * @return Entity index of skin, or 0 if none exists.
- */
-stock int GetSkin(int target)
-{
-	int iSkin = EntRefToEntIndex(g_playersData[client].rSkinItem);
-
-	if (iSkin == INVALID_ENT_REFERENCE)
-	{
-		//the entity was deleted somehow
-		RemoveSkin(target);
-		return 0;
-	}
-	else return iSkin;
-}
-
-/**
  * Removes a skin from a player, deleting the skin entity and making the player animation model visible.
  * @param target Client ID of the target player.
  * @return true if a skin was removed, false if there was no skin to begin with.
+ * @error if target is not a valid client.
  */
 bool RemoveSkin(int target)
 {
+	CheckClientValid(target);
+
 	//make player anim model visible
 	MakePlayerVisible(target);
 	
@@ -176,8 +170,11 @@ bool RemoveSkin(int target)
 }
 
 //set the client model, which dictates their animations (and appearance with no skin)
+//@error if client is not a valid client id.
 void SetAnim(int client, char[] model)
 {
+	CheckClientValid(client);
+	
 	if (!CheckModelGood(model))
 	{
 		LogMessage("Warning: A non-precached animation model was about to be used. This would've caused a crash. (Error 31)");
@@ -191,8 +188,10 @@ void SetAnim(int client, char[] model)
 }
 
 //reset the client model, which dictates their animations (and appearance with no skin)
+//@error if client is not a valid client id.
 void RemoveAnim(int target)
 {
+	CheckClientValid(target);
 	SetVariantString("");
 	AcceptEntityInput(target, "SetCustomModel");
 	strcopy(g_playersData[target].animPath, PLATFORM_MAX_PATH, "");

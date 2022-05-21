@@ -5,10 +5,10 @@
 
 public Action Timer_RegularCleanup(Handle timer)
 {
-	DeleteAllWearables();
+	CleanupWearables();
 }
 
-void DeleteAllWearables(bool onlyLost = true)
+void CleanupWearables(bool onlyLost = true)
 {
 	for (int i = 0; i < allWearables.Length; i++)
 	{
@@ -18,7 +18,7 @@ void DeleteAllWearables(bool onlyLost = true)
 			//should be removed
 			if (!IsValidEntity(rItem))
 			{
-				//is already deleted
+				//is deleted
 				allWearables.Erase(i);
 			}
 			else
@@ -28,7 +28,6 @@ void DeleteAllWearables(bool onlyLost = true)
 
 				//is not already deleted
 				if (IsValidEntity(rItem)) RemoveEntity(rItem);
-				allWearables.Erase(i);
 			}
 		}
 	}

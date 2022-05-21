@@ -49,3 +49,17 @@ void ToLowerCase(char[] str, int strsize)
 			str[i] = CharToLower(str[i]);
 	}
 }
+
+/**
+ * Returns if a client ID is valid.
+ * Note a client index of 0 - the server - is not considered valid.
+ * @return true if client is a valid client index, false if not.
+ */
+public bool IsValidClient(int client) { return client > 0 && client <= MaxClients && IsClientInGame(client); }
+
+/**
+ * Checks if a client index is valid, and if not, throws an error.
+ * Note a client index of 0 - the server - is not considered valid and will throw an error.
+ * @error if client is not a valid client index.
+ */
+public void CheckClientValid(int client) { if (!IsValidClient(client)) ThrowError("Client index %i is not a valid client.", client); }

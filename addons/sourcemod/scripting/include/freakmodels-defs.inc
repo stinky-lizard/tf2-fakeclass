@@ -11,6 +11,7 @@ enum FuncOutput
 {
 	GOOD,
 	SETSKIN_TARGETNOTEAM,
+	SETSKIN_TARGETINVALID,
 	GETPATHARG_ALREADYFILLED,
 	GETPATHARG_NOVAL
 }
@@ -40,11 +41,11 @@ enum struct PlayerData
 
 //used globally - in many modules
 
-ModelChangeData g_clientsCommandData[MAXPLAYERS];
+ModelChangeData g_clientsCommandData[MAXPLAYERS + 1];
 
 // Handle regularCleanupTimer = null;
 
-PlayerData g_playersData[MAXPLAYERS];
+PlayerData g_playersData[MAXPLAYERS + 1];
 
 Handle g_hDummyItemView = null;
 Handle g_hEquipWearable = null;
@@ -58,3 +59,11 @@ ArrayList allWearables = null;
 #define FM_CONFIGFILEPATH "configs/freakmodels.models.txt"
 
 KeyValues config = null;
+
+enum struct Setting
+{
+	char name[33];
+	char comment[257];
+
+	int defaultValue;
+}
