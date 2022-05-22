@@ -17,17 +17,18 @@
 
 /**
  * Creates & gives a wearable to a player.
- * @param target client ID of target.
+ * @param target client id of target.
  * @param model full path to model.
- * @return __REFERENCE__ ID of created entity, or -1 if error (not in game).
+ * @param rItem OUTPUT: __REFERENCE__ ID of created entity.
+ * @return one of FuncOutput.
  */
-int CreateWearable(int target, char[] model)
+FuncOutput CreateWearable(int target, char[] model, int& rItem)
 {
-	CheckClientValid(target);
-
 	//are they in game?
 	TFTeam team = TF2_GetClientTeam(target);
-	if (team != TFTeam_Blue && team != TFTeam_Red) return -1; //not in game
+	if (team != TFTeam_Blue && team != TFTeam_Red) return TARGETNOTEAM; //not in game
+
+	if (!g_hDummyItemView) ThrowError("Error: g_hDummyItemView was not initialized properly.");
 
 	//create item that will get skin
 	int iSkinItem = TF2Items_GiveNamedItem(target, g_hDummyItemView);
@@ -65,11 +66,12 @@ int CreateWearable(int target, char[] model)
 	{
 		LogMessage("Warning: A non-precached skin model was about to be used. This would've caused a crash. (Error 32)");
 		SetEntityModel(rSkinItem, "models/error.mdl");
-		return rSkinItem;
+		rItem = rSkinItem;
 	}
 	SetEntityModel(rSkinItem, model);
 
-	return rSkinItem;
+	rItem = rSkinItem;
+	return GOOD;
 }
 
 /**
@@ -78,14 +80,12 @@ int CreateWearable(int target, char[] model)
  * @param target Client ID of target.
  * @error if target is not a valid client index.
  */
-bool MakePlayerInvisible(int target)
+void MakePlayerInvisible(int target)
 {
-	CheckClientValid(target);
 	SetEntityRenderMode(target, RENDER_NONE);
 	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
 	tarEffects |= (EF_NOSHADOW|EF_NORECEIVESHADOW);
 	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
-	return true;
 }
 
 /**
@@ -94,14 +94,12 @@ bool MakePlayerInvisible(int target)
  * @param target Client ID of target.
  * @error if target is not a valid client index.
  */
-bool MakePlayerVisible(int target)
+void MakePlayerVisible(int target)
 {
-	CheckClientValid(target);
 	SetEntityRenderMode(target, RENDER_NORMAL);
 	int tarEffects = GetEntProp(target, Prop_Send, "m_fEffects");
 	tarEffects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW); //enable shadow
 	SetEntProp(target, Prop_Send, "m_fEffects", tarEffects);
-	return true;
 }
 
 /**
@@ -112,16 +110,16 @@ bool MakePlayerVisible(int target)
  */
 FuncOutput SetSkin(int target, char[] skinModel)
 {
-	CheckClientValid(target);
-
 	//remove skin if it exists
 	RemoveSkin(target);
 
-	int rSkinItem = CreateWearable(target, skinModel);
-	if (rSkinItem == -1) return SETSKIN_TARGETNOTEAM;
-	g_playersData[target].rSkinItem = rSkinItem;
-
-	strcopy(g_playersData[target].skinPath, PLATFORM_MAX_PATH, skinModel);
+	int rSkinItem;
+	int createWearOutput = CreateWearable(target, skinModel, rSkinItem);
+	if (createWearOutput == TARGETNOTEAM) return TARGETNOTEAM;
+	
+	PlayerData pData = PlayerData(target);
+	pData.rSkinItem = rSkinItem;
+	pData.SetSkinPath(skinModel);
 	
 	//make player (i.e. anim model) invisible
 	MakePlayerInvisible(target);
@@ -142,39 +140,42 @@ FuncOutput SetSkin(int target, char[] skinModel)
  * Removes a skin from a player, deleting the skin entity and making the player animation model visible.
  * @param target Client ID of the target player.
  * @return true if a skin was removed, false if there was no skin to begin with.
- * @error if target is not a valid client.
  */
 bool RemoveSkin(int target)
 {
-	CheckClientValid(target);
+	bool skinRemoved = false;
 
 	//make player anim model visible
 	MakePlayerVisible(target);
-	
-	//delete skin
-	int index = EntRefToEntIndex(g_playersData[target].rSkinItem);
-	if (g_playersData[target].rSkinItem && index != INVALID_ENT_REFERENCE)
+
+	PlayerData pData = PlayerData(target);
+
+	//if there is a skin but it isnt a valid ent
+	if (pData.rSkinItem && !IsValidEntity(rSkinItem))
 	{
+		//delete skin
 		AcceptEntityInput(index, "ClearParent");
+		
+		int index = EntRefToEntIndex(pData.rSkinItem);
 		TF2_RemoveWearable(target, index);
 
 		//docs say TF2_RemoveWearable deletes it. hopefully this fixes the bug
-		RemoveEntity(g_playersData[target].rSkinItem);
+		if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
 
-		g_playersData[target].rSkinItem = 0;
-		strcopy(g_playersData[target].skinPath, PLATFORM_MAX_PATH, "");
-		return true;
+
+		skinRemoved = true;
 	}
-	g_playersData[target].rSkinItem = 0;
-	return false;
+
+	pData.rSkinItem = 0;
+	pData.SetSkinPath("");
+
+	return skinRemoved;
 }
 
 //set the client model, which dictates their animations (and appearance with no skin)
 //@error if client is not a valid client id.
 void SetAnim(int client, char[] model)
 {
-	CheckClientValid(client);
-	
 	if (!CheckModelGood(model))
 	{
 		LogMessage("Warning: A non-precached animation model was about to be used. This would've caused a crash. (Error 31)");
@@ -184,15 +185,15 @@ void SetAnim(int client, char[] model)
 	AcceptEntityInput(client, "SetCustomModel");
 	SetEntProp(client, Prop_Send, "m_bUseClassAnimations", 1);
 
-	strcopy(g_playersData[client].animPath, PLATFORM_MAX_PATH, model);
+	PlayerData(client).SetAnimPath(model);
 }
 
 //reset the client model, which dictates their animations (and appearance with no skin)
 //@error if client is not a valid client id.
 void RemoveAnim(int target)
 {
-	CheckClientValid(target);
 	SetVariantString("");
 	AcceptEntityInput(target, "SetCustomModel");
-	strcopy(g_playersData[target].animPath, PLATFORM_MAX_PATH, "");
+	
+	PlayerData(client).SetAnimPath("");
 }

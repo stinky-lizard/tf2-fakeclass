@@ -10,8 +10,8 @@
 enum FuncOutput
 {
 	GOOD,
-	SETSKIN_TARGETNOTEAM,
-	SETSKIN_TARGETINVALID,
+	TARGETNOTEAM,
+	TARGETINVALID,
 	GETPATHARG_ALREADYFILLED,
 	GETPATHARG_NOVAL
 }
@@ -32,8 +32,10 @@ enum struct ModelChangeData
 
 }
 
-enum struct PlayerData
+enum struct PlayerDataStruct
 {
+	int userId;
+
 	int rSkinItem;
 	char skinPath[PLATFORM_MAX_PATH];
 	char animPath[PLATFORM_MAX_PATH];
@@ -45,10 +47,67 @@ ModelChangeData g_clientsCommandData[MAXPLAYERS + 1];
 
 // Handle regularCleanupTimer = null;
 
-PlayerData g_playersData[MAXPLAYERS + 1];
+//hidden - only accessible with the PlayerData methodmap
+static PlayerDataStruct g_playersData[MAXPLAYERS + 1];
 
 Handle g_hDummyItemView = null;
 Handle g_hEquipWearable = null;
+
+methodmap PlayerData
+{
+	public PlayerData(int clientId)
+	{
+		g_playersData.userId = GetClientUserId(clientId);
+		return view_as<PlayerData>(clientId);
+	}
+	
+	property int clientId
+	{
+		public get() { return view_as<int>(this); }
+	}
+	
+	property int userId
+	{
+		public get() { return g_playersData[this.clientId].userId; }
+	}
+
+	property int rSkinItem
+	{
+		public get() { return g_playersData[this.clientId].rSkinItem; }
+		public set(int value) { g_playersData[this.clientId].rSkinItem = value; }
+	}
+
+	public void GetSkinPath(char[] buffer, int bufferSize)
+	{
+		strcopy(buffer, bufferSize, g_playersData[this.clientId].skinPath);
+	}
+
+	public void SetSkinPath(char[] path)
+	{
+		strcopy(g_playersData[this.clientId].skinPath, PLATFORM_MAX_PATH, path);
+	}
+
+
+	public void GetAnimPath(char[] buffer, int bufferSize)
+	{
+		strcopy(buffer, bufferSize, g_playersData[this.clientId].animPath);
+	}
+
+	public void SetAnimPath(char[] path)
+	{
+		strcopy(g_playersData[this.clientId].animPath, PLATFORM_MAX_PATH, path);
+	}
+
+	public void ClearData()
+	{
+		this.SetSkinPath("");
+		this.SetAnimPath("");
+		this.rSkinItem = 0;
+		
+		g_playersData[this.clientId].userId = 0;
+	}
+
+}
 
 //mainly used in/for cleanup module
 

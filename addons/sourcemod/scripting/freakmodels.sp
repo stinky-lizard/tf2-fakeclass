@@ -498,7 +498,7 @@ void SetModelsFromData(int client)
 		{
 			GetTargetString(client, target, targetString, sizeof(targetString));
 			
-			if (SetSkin(target, skinPath) == SETSKIN_TARGETNOTEAM) 
+			if (SetSkin(target, skinPath) == TARGETNOTEAM)
 				ReplyToCommand(client, "You can't set %s skin; %s aren't in the game!", targetString, (client == target) ? "you" : "they");
 			//successfully set the skin confirmations:
 			else if (data.useFullpaths) 
