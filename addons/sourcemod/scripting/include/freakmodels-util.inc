@@ -8,10 +8,8 @@ bool GetTargetString(int client, int target, char[] buffer, int buffersize)
 	if (client == target) strcopy(buffer, buffersize, "your");
 	else
 	{
-		char name[64];
-		GetClientName(target, name, sizeof(name));
-		StrCat(name, sizeof(name), "'s");
-		strcopy(buffer, buffersize, name);
+		GetClientName(target, buffer, buffersize);
+		StrCat(buffer, buffersize, "'s");
 	}
 	return client == target;
 }

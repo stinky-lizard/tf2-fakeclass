@@ -47,8 +47,10 @@ ModelChangeData g_clientsCommandData[MAXPLAYERS + 1];
 
 // Handle regularCleanupTimer = null;
 
+#define PLAYERSDATASIZE (MAXPLAYERS + 1)
+
 //hidden - only accessible with the PlayerData methodmap
-static PlayerDataStruct g_playersData[MAXPLAYERS + 1];
+static PlayerDataStruct g_playersData[PLAYERSDATASIZE];
 
 Handle g_hDummyItemView = null;
 Handle g_hEquipWearable = null;
@@ -57,7 +59,7 @@ methodmap PlayerData
 {
 	public PlayerData(int clientId)
 	{
-		g_playersData.userId = GetClientUserId(clientId);
+		g_playersData[clientId].userId = GetClientUserId(clientId);
 		return view_as<PlayerData>(clientId);
 	}
 	
@@ -118,11 +120,3 @@ ArrayList allWearables = null;
 #define FM_CONFIGFILEPATH "configs/freakmodels.models.txt"
 
 KeyValues config = null;
-
-enum struct Setting
-{
-	char name[33];
-	char comment[257];
-
-	int defaultValue;
-}

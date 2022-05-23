@@ -41,11 +41,15 @@ void CleanupWearables(bool onlyLost = true)
  */
 int ItemUsedBy(const int itemReference)
 {
-	int usedBy;
+	int usedBy = -1;
 
-	for(int i = 0; i < sizeof(g_playersData); i++)
+	for(int i = 0; i < PLAYERSDATASIZE; i++)
 	{
-		if (itemReference == g_playersData[i].rSkinItem) usedBy = i;
+		if (itemReference == PlayerData(i).rSkinItem) 
+		{
+			usedBy = i;
+			break;
+		}
 	}
 
 	return usedBy;

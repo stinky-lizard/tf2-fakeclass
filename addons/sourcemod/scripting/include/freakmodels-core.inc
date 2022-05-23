@@ -4,8 +4,8 @@
 #include <freakmodels-config>
 #include <freakmodels-util>
 
-#include <freakmodels-manage>
-#include <freakmodels-cleanup>
+// #include <freakmodels-manage>
+// #include <freakmodels-cleanup>
 
 // #include <freakmodels-ragdoll> //disabled for now, want to redo it
 
@@ -66,9 +66,8 @@ FuncOutput CreateWearable(int target, char[] model, int& rItem)
 	{
 		LogMessage("Warning: A non-precached skin model was about to be used. This would've caused a crash. (Error 32)");
 		SetEntityModel(rSkinItem, "models/error.mdl");
-		rItem = rSkinItem;
 	}
-	SetEntityModel(rSkinItem, model);
+	else SetEntityModel(rSkinItem, model);
 
 	rItem = rSkinItem;
 	return GOOD;
@@ -114,7 +113,7 @@ FuncOutput SetSkin(int target, char[] skinModel)
 	RemoveSkin(target);
 
 	int rSkinItem;
-	int createWearOutput = CreateWearable(target, skinModel, rSkinItem);
+	FuncOutput createWearOutput = CreateWearable(target, skinModel, rSkinItem);
 	if (createWearOutput == TARGETNOTEAM) return TARGETNOTEAM;
 	
 	PlayerData pData = PlayerData(target);
@@ -151,14 +150,14 @@ bool RemoveSkin(int target)
 	PlayerData pData = PlayerData(target);
 
 	//if there is a skin but it isnt a valid ent
-	if (pData.rSkinItem && !IsValidEntity(rSkinItem))
+	if (pData.rSkinItem && !IsValidEntity(pData.rSkinItem))
 	{
 		//delete skin
-		AcceptEntityInput(index, "ClearParent");
-		
 		int index = EntRefToEntIndex(pData.rSkinItem);
-		TF2_RemoveWearable(target, index);
+		
+		AcceptEntityInput(index, "ClearParent");
 
+		TF2_RemoveWearable(target, index);
 		//docs say TF2_RemoveWearable deletes it. hopefully this fixes the bug
 		if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
 
@@ -194,6 +193,6 @@ void RemoveAnim(int target)
 {
 	SetVariantString("");
 	AcceptEntityInput(target, "SetCustomModel");
-	
-	PlayerData(client).SetAnimPath("");
+
+	PlayerData(target).SetAnimPath("");
 }

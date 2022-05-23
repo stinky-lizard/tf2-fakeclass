@@ -5,6 +5,8 @@
 #include <sdkhooks>
 
 #include <freakmodels-core>
+#include <freakmodels-cleanup>
+#include <freakmodels-manage>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -132,9 +134,9 @@ public void OnMapStart()
 //Remove any skins from players (since they're items, they stay after) & re-enable any players
 public void OnPluginEnd()
 {
-	for (int i = 0; i < sizeof(g_playersData); i++)
+	for (int i = 0; i < PLAYERSDATASIZE; i++)
 	{
-		if (g_playersData[i].rSkinItem)
+		if (PlayerData(i).rSkinItem)
 		{
 			//there's a skin, whether it's real or deleted somehow
 			RemoveSkin(i);
@@ -156,12 +158,13 @@ public void OnEntityDestroyed(int entity)
 	bool entFound = false;
 	int i = 0;
 	
-	for (; i < sizeof(g_playersData); i++)
+	for (; i < PLAYERSDATASIZE; i++)
 	{
+
 		//this is called before the entity is actually removed i think
 		//and this is called when the round changes & the skin is removed!
 		//so we can re-enable the player on round change
-		if (EntRefToEntIndex(g_playersData[i].rSkinItem) == entity)
+		if (EntRefToEntIndex(PlayerData(i).rSkinItem) == entity)
 		{
 			entFound = true;
 			break;
@@ -172,7 +175,7 @@ public void OnEntityDestroyed(int entity)
 	{
 		//i is the player whose skin was destroyed
 		MakePlayerVisible(i);
-		g_playersData[i].rSkinItem = 0;
+		PlayerData(i).rSkinItem = 0;
 	}
 }
 

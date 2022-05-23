@@ -243,38 +243,3 @@ bool PrecacheAllModelsInCurSection(bool intheweeds = false)
 
 	return out;
 }
-
-static void DefSetting(Setting setting, char[] name, int defaultValue, char[] comment="No comment yet!")
-{
-	strcopy(setting.name, 33, name);
-	strcopy(setting.comment, 257, comment);
-	setting.defaultValue = defaultValue;
-}
-
-#define NUMBER_OF_SETTINGS 2
-static bool GetDefaultSettings(Setting[] settings, int settingsSize)
-{
-	if (settingsSize < NUMBER_OF_SETTINGS) return false;
-
-	//ADD NEW SETTINGS HERE
-
-	DefSetting(settings[0], "CleanupInterval", 180, "The interval between regular cleanups of unused entities. Default value is 3 minutes.");
-	DefSetting(settings[1], "PlayerCheckInterval", 10, "The interval between regular checks for if a player's model and wearables are set correctly. Default value is 10 seconds.");
-
-	return true;
-}
-
-/**
- * Retrieves a setting from the config.
- * __This will reset the config to the root node.__
- * 
- * @param name     Param description
- * @return         Return description
- */
-int GetSetting(char[] name)
-{
-	config.Rewind();
-
-	config.JumpToKey("settings");
-
-}
