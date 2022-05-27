@@ -5,6 +5,7 @@
 #include <sdkhooks>
 
 #include <freakmodels-core>
+#include <freakmodels-equip>
 #include <freakmodels-cleanup>
 #include <freakmodels-manage>
 
@@ -80,10 +81,15 @@ public void OnPluginStart()
 	//model configs
 	RefreshConfigFromFile();
 
-	//cleanup stuff
+	//initialize player data equippables
+	for (int i = 1; i < PLAYERSDATASIZE; i++)
+		PlayerData(i).InitEquipList();
+
+	//initialize cleanup stuff
 	allWearables = new ArrayList();
 
 	CreateTimer(20.0, Timer_RegularCleanup, _, TIMER_REPEAT);
+
 
 	//get req admin flags
 	config.Rewind();
@@ -160,36 +166,17 @@ public void OnEntityDestroyed(int entity)
 {
 	char classname[MAX_NAME_LENGTH];
 	GetEntityClassname(entity, classname, sizeof(classname));
-	if (!StrEqual(classname, "tf_wearable"))
+	if (!(StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "playermodel_wearable", false)))
 		//it ain't a wearable, def isn't ours
 		return;
-
-	bool entFound = false;
-	int i = 1; //skip server
 	
-	//test
 	int usedBy = ItemUsedBy(EntIndexToEntRef(entity));
+
 	if (usedBy != -1)
-		PrintToChatAll("Item %i (ref %i) is the same, used by %i", entity, EntIndexToEntRef(entity), usedBy);
-
-	for (; i < PLAYERSDATASIZE; i++)
-	{
-
-		//this is called before the entity is actually removed i think
-		//and this is called when the round changes & the skin is removed!
-		//so we can re-enable the player on round change
-		if (EntRefToEntIndex(PlayerData(i).rSkinItem) == entity)
-		{
-			entFound = true;
-			break;
-		}
-	}
-
-	if (entFound)
 	{
 		//i is the player whose skin was destroyed
-		if (IsValidClient(i)) MakePlayerVisible(i);
-		PlayerData(i).rSkinItem = 0;
+		if (IsValidClient(usedBy)) MakePlayerVisible(usedBy);
+		PlayerData(usedBy).rSkinItem = 0;
 	}
 }
 

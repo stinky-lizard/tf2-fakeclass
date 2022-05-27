@@ -22,7 +22,7 @@ void RagdollMade(int entity)
 		SetVariantString(g_playersData[owner].skinPath);
 		AcceptEntityInput(owner, "SetCustomModel");
 
-		CreateTimer(0.1, ResetPlayerModelAfterDeath, owner);
+		CreateTimer(0.1, ResetPlayerModelAfterDeath, GetClientUserId(owner));
 
 	}
 	
@@ -30,6 +30,7 @@ void RagdollMade(int entity)
 
 public Action ResetPlayerModelAfterDeath(Handle timer, int owner)
 {
+	owner = GetClientOfUserId(owner);
 	SetVariantString(g_playersData[owner].animPath);
 	AcceptEntityInput(owner, "SetCustomModel");
 }

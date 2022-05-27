@@ -84,6 +84,12 @@ methodmap PlayerData
 		public set(int value) { g_playersData[this.clientId].rSkinItem = value; }
 	}
 
+	public void InitEquipList()
+	{
+		if (g_playersData[this.clientId].equippedItems) delete g_playersData[this.clientId].equippedItems;
+		g_playersData[this.clientId].equippedItems = new ArrayList();
+	}
+
 	public void ClearData()
 	{
 		//cant use SetSkinPath/SetAnimPath bc methodmaps and their members aren't hoisted :(
@@ -96,9 +102,7 @@ methodmap PlayerData
 		
 		g_playersData[this.clientId].userId = 0;
 
-		delete g_playersData[this.clientId].equippedItems;
-		g_playersData[this.clientId].equippedItems = new ArrayList();
-
+		this.InitEquipList();
 	}
 
 	public void CheckValid()
@@ -135,6 +139,32 @@ methodmap PlayerData
 	{
 		this.CheckValid();
 		strcopy(g_playersData[this.clientId].animPath, PLATFORM_MAX_PATH, path);
+	}
+
+	public void SetEquippable(int itemReference, int slot)
+	{
+		this.CheckValid();
+
+		if (slot < 1) ThrowError("The SetEquippable slot %i is invalid; slots start counting from 1.", slot);
+
+		ArrayList list = g_playersData[this.clientId].equippedItems;
+
+		if (list.Length < slot)
+			//not long enough
+			list.Resize(slot);
+
+		list.Set(slot - 1, itemReference);
+
+		//TODO: should I delete this? Does deleting a handle delete the object in memory or just the reference to the object?
+		delete list;
+	}
+
+	public int GetEquippable(int slot)
+	{
+
+		ArrayList list = g_playersData[this.clientId].equippedItems;
+		if (list.Length < slot) return 0;
+		else return list.Get(slot - 1);
 	}
 }
 
