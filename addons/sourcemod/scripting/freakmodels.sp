@@ -83,7 +83,7 @@ public void OnPluginStart()
 	//cleanup stuff
 	allWearables = new ArrayList();
 
-	CreateTimer(180.0, Timer_RegularCleanup, _, TIMER_REPEAT);
+	CreateTimer(20.0, Timer_RegularCleanup, _, TIMER_REPEAT);
 
 	//get req admin flags
 	config.Rewind();
@@ -96,7 +96,6 @@ public void OnPluginStart()
 	RegAdminCmd("freakmodel_manage", ManageCommand, adm);
 	
 	RegAdminCmd("fakeclass", MainCommand, adm); //for backwards-compatibility QoL
-
 }
 
 //precache models found in the config file
@@ -144,20 +143,35 @@ public void OnPluginEnd()
 		}
 	}
 
-	CleanupWearables(false);
+	while(allWearables.Length > 0)
+		CleanupWearables(false);
+
 }
 
 //Remove any skins from players that disconnect
 public void OnClientDisconnect(int client)
 {
 	RemoveSkin(client);
+	//dont need to manage the anim
+	PlayerData(client).ClearData();
 }
 
 public void OnEntityDestroyed(int entity)
 {
+	char classname[MAX_NAME_LENGTH];
+	GetEntityClassname(entity, classname, sizeof(classname));
+	if (!StrEqual(classname, "tf_wearable"))
+		//it ain't a wearable, def isn't ours
+		return;
+
 	bool entFound = false;
-	int i = 0;
+	int i = 1; //skip server
 	
+	//test
+	int usedBy = ItemUsedBy(EntIndexToEntRef(entity));
+	if (usedBy != -1)
+		PrintToChatAll("Item %i (ref %i) is the same, used by %i", entity, EntIndexToEntRef(entity), usedBy);
+
 	for (; i < PLAYERSDATASIZE; i++)
 	{
 
@@ -174,7 +188,7 @@ public void OnEntityDestroyed(int entity)
 	if (entFound)
 	{
 		//i is the player whose skin was destroyed
-		MakePlayerVisible(i);
+		if (IsValidClient(i)) MakePlayerVisible(i);
 		PlayerData(i).rSkinItem = 0;
 	}
 }
@@ -529,7 +543,7 @@ public int ConfirmAllMenuHandler(Menu menu, MenuAction action, int param1, int p
 	{
 		case MenuAction_End:
 		{
-		delete menu;
+			delete menu;
 		}
 		case MenuAction_Select:
 		{
@@ -624,11 +638,12 @@ void PrintHelp(int client)
 }
 
 /**
- * gets client id of specified username. If none is found, returns -1.
- * @note these docs are outdated.
+ * gets client id of specified username.
  * @param client Client ID of caller.
  * @param user String to search against.
- * @param foundName Buffer string to store found username.
+ * @param targetsFound OUTPUT: number of targets found.
+ * @param targetList OUTPUT: list to hold the targets.
+ * @return if a target was found.
  */
 bool GetClientsFromUsername(int client, char[] user, int& targetsFound, int[] targetList, const int targetListSize)
 {

@@ -32,6 +32,9 @@ enum struct ModelChangeData
 
 }
 
+//using an arrayList instead?
+// #define NUMALLOWEDWEARABLES 32
+
 enum struct PlayerDataStruct
 {
 	int userId;
@@ -39,6 +42,8 @@ enum struct PlayerDataStruct
 	int rSkinItem;
 	char skinPath[PLATFORM_MAX_PATH];
 	char animPath[PLATFORM_MAX_PATH];
+
+	ArrayList equippedItems;
 }
 
 //used globally - in many modules
@@ -59,7 +64,7 @@ methodmap PlayerData
 {
 	public PlayerData(int clientId)
 	{
-		g_playersData[clientId].userId = GetClientUserId(clientId);
+		if (IsValidClient(clientId)) g_playersData[clientId].userId = GetClientUserId(clientId);
 		return view_as<PlayerData>(clientId);
 	}
 	
@@ -79,13 +84,44 @@ methodmap PlayerData
 		public set(int value) { g_playersData[this.clientId].rSkinItem = value; }
 	}
 
+	public void ClearData()
+	{
+		//cant use SetSkinPath/SetAnimPath bc methodmaps and their members aren't hoisted :(
+		//reset skin path
+		strcopy(g_playersData[this.clientId].skinPath, PLATFORM_MAX_PATH, "");
+		//reset anim path
+		strcopy(g_playersData[this.clientId].animPath, PLATFORM_MAX_PATH, "");
+
+		this.rSkinItem = 0;
+		
+		g_playersData[this.clientId].userId = 0;
+
+		delete g_playersData[this.clientId].equippedItems;
+		g_playersData[this.clientId].equippedItems = new ArrayList();
+
+	}
+
+	public void CheckValid()
+	{
+		//if there's no user id, then this PlayerData wasn't valid on creation, and shouldn't be assumed to be valid now
+		if (!(this.userId))
+		{
+			int c = this.clientId;
+			this.ClearData();
+			ThrowError("PlayerData of client index %i is not a real player.", c);
+		}
+	}
+
 	public void GetSkinPath(char[] buffer, int bufferSize)
 	{
+		//we should be allowed to get the properties of a nonexistent player. they should be 0.
 		strcopy(buffer, bufferSize, g_playersData[this.clientId].skinPath);
 	}
 
 	public void SetSkinPath(char[] path)
 	{
+		//we should not be allowed to set the props of a nonexistent player, for obvious reasons.
+		this.CheckValid();
 		strcopy(g_playersData[this.clientId].skinPath, PLATFORM_MAX_PATH, path);
 	}
 
@@ -97,18 +133,9 @@ methodmap PlayerData
 
 	public void SetAnimPath(char[] path)
 	{
+		this.CheckValid();
 		strcopy(g_playersData[this.clientId].animPath, PLATFORM_MAX_PATH, path);
 	}
-
-	public void ClearData()
-	{
-		this.SetSkinPath("");
-		this.SetAnimPath("");
-		this.rSkinItem = 0;
-		
-		g_playersData[this.clientId].userId = 0;
-	}
-
 }
 
 //mainly used in/for cleanup module

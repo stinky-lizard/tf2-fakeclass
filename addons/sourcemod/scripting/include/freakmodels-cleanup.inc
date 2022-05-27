@@ -20,14 +20,18 @@ void CleanupWearables(bool onlyLost = true)
 			{
 				//is deleted
 				allWearables.Erase(i);
+				//we've shifted the array down, so we need to shift i down as well
+				i--;
 			}
 			else
 			{
-                //TODO: check if this entity is worn by going thru every client and checking m_hMyWearables
-                //if it is, then use TF2_RemoveWearable
+				if (ItemUsedBy(rItem) != -1)
+					//will only happen if onlyLost is false
+					TF2_RemoveWearable(ItemUsedBy(rItem), rItem);
 
 				//is not already deleted
-				if (IsValidEntity(rItem)) RemoveEntity(rItem);
+				if (IsValidEntity(rItem)) 
+					RemoveEntity(rItem);
 			}
 		}
 	}
@@ -43,7 +47,8 @@ int ItemUsedBy(const int itemReference)
 {
 	int usedBy = -1;
 
-	for(int i = 0; i < PLAYERSDATASIZE; i++)
+	//i = 1 to skip server
+	for(int i = 1; i < PLAYERSDATASIZE; i++)
 	{
 		if (itemReference == PlayerData(i).rSkinItem) 
 		{

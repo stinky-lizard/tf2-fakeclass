@@ -105,8 +105,9 @@ void CreateConfigFile(bool addClasses=true)
 
 	models.Rewind();
 
-
 	models.ExportToFile(filePath);
+
+	delete models;
 }
 
 /**

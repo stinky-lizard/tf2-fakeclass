@@ -149,8 +149,8 @@ bool RemoveSkin(int target)
 
 	PlayerData pData = PlayerData(target);
 
-	//if there is a skin but it isnt a valid ent
-	if (pData.rSkinItem && !IsValidEntity(pData.rSkinItem))
+	//if there is a valid skin ent
+	if (pData.rSkinItem && IsValidEntity(pData.rSkinItem))
 	{
 		//delete skin
 		int index = EntRefToEntIndex(pData.rSkinItem);
@@ -188,7 +188,6 @@ void SetAnim(int client, char[] model)
 }
 
 //reset the client model, which dictates their animations (and appearance with no skin)
-//@error if client is not a valid client id.
 void RemoveAnim(int target)
 {
 	SetVariantString("");
