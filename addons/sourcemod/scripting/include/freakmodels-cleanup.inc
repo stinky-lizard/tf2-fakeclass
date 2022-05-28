@@ -47,14 +47,27 @@ int ItemUsedBy(const int itemReference)
 {
 	int usedBy = -1;
 
+	bool done = false;
+
 	//i = 1 to skip server
 	for(int i = 1; i < PLAYERSDATASIZE; i++)
 	{
-		if (itemReference == PlayerData(i).rSkinItem) 
+		PlayerData pData = PlayerData(i);
+		if (itemReference == pData.rSkinItem) 
 		{
 			usedBy = i;
 			break;
 		}
+		for (int j = 1; j <= pData.equippableSlotsLength; j++)
+		{
+			if (itemReference == pData.GetEquippable(j))
+			{
+				usedBy = i;
+				done = true;
+				break;
+			}
+		}
+		if (done) break;
 	}
 
 	return usedBy;

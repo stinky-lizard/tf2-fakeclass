@@ -13,7 +13,8 @@ enum FuncOutput
 	TARGETNOTEAM,
 	TARGETINVALID,
 	GETPATHARG_ALREADYFILLED,
-	GETPATHARG_NOVAL
+	GETPATHARG_NOVAL,
+	REMOVEDEQUIP
 }
 
 enum struct ModelChangeData
@@ -76,6 +77,11 @@ methodmap PlayerData
 	property int userId
 	{
 		public get() { return g_playersData[this.clientId].userId; }
+	}
+
+	property int equippableSlotsLength
+	{
+		public get() { return g_playersData[this.clientId].equippedItems.Length; }
 	}
 
 	property int rSkinItem
@@ -155,8 +161,6 @@ methodmap PlayerData
 
 		list.Set(slot - 1, itemReference);
 
-		//TODO: should I delete this? Does deleting a handle delete the object in memory or just the reference to the object?
-		delete list;
 	}
 
 	public int GetEquippable(int slot)

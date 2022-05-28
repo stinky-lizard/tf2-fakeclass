@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3a"
+#define PLUGIN_VERSION "1.3"
 
 
 public Plugin myinfo = 
@@ -102,6 +102,8 @@ public void OnPluginStart()
 	RegAdminCmd("freakmodel_manage", ManageCommand, adm);
 	
 	RegAdminCmd("fakeclass", MainCommand, adm); //for backwards-compatibility QoL
+
+	RegAdminCmd("fm_equip", EquipCommand, adm);
 }
 
 //precache models found in the config file
