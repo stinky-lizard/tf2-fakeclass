@@ -12,7 +12,7 @@ FuncOutput AddEquippable(int target, char[] modelPath, int slot)
 
     CreateWearable(target, modelPath, rItem);
 
-    pData.SetEquippable(rItem);
+    pData.SetEquippable(rItem, slot);
 
     return GOOD;
 }
