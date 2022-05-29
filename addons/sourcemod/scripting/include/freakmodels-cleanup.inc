@@ -8,30 +8,49 @@ public Action Timer_RegularCleanup(Handle timer)
 	CleanupWearables();
 }
 
+KeyValues g_cleanedEnts = null;
+
 void CleanupWearables(bool onlyLost = true)
 {
+	if (!g_cleanedEnts)
+		g_cleanedEnts = new KeyValues("CleanedEntities");
+
+
 	for (int i = 0; i < allWearables.Length; i++)
 	{
 		int rItem = allWearables.Get(i);
+
+		char rItemStr[32];
+		IntToString(rItem, rItemStr, sizeof(rItemStr));
+
 		if ((onlyLost && ItemUsedBy(rItem) == -1) || !onlyLost)
 		{
 			//should be removed
-			if (!IsValidEntity(rItem))
+			if (!IsValidEntity(rItem) || g_cleanedEnts.GetNum(rItemStr))
 			{
 				//is deleted
 				allWearables.Erase(i);
 				//we've shifted the array down, so we need to shift i down as well
 				i--;
+
+				g_cleanedEnts.DeleteKey(rItemStr);
 			}
 			else
 			{
+
 				if (ItemUsedBy(rItem) != -1)
+				{
 					//will only happen if onlyLost is false
-					TF2_RemoveWearable(ItemUsedBy(rItem), rItem);
+					TF2_RemoveWearable(ItemUsedBy(rItem), EntRefToEntIndex(rItem));
+					g_cleanedEnts.SetNum(rItemStr, 1);
+				}
 
 				//is not already deleted
 				if (IsValidEntity(rItem)) 
-					RemoveEntity(rItem);
+				{
+					RemoveEntity(rItem);	
+					g_cleanedEnts.SetNum(rItemStr, 1);
+				}
 			}
 		}
 	}
@@ -58,7 +77,8 @@ int ItemUsedBy(const int itemReference)
 			usedBy = i;
 			break;
 		}
-		for (int j = 1; j <= pData.equippableSlotsLength; j++)
+		int max = pData.equippableSlotsLength;
+		for (int j = 1; j <= max; j++)
 		{
 			if (itemReference == pData.GetEquippable(j))
 			{

@@ -5,9 +5,12 @@
 #include <sdkhooks>
 
 #include <freakmodels-core>
+
 #include <freakmodels-equip>
 #include <freakmodels-cleanup>
 #include <freakmodels-manage>
+// #include <freakmodels-menu>
+#include <freakmodels-fixes>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -88,8 +91,10 @@ public void OnPluginStart()
 	//initialize cleanup stuff
 	allWearables = new ArrayList();
 
-	CreateTimer(20.0, Timer_RegularCleanup, _, TIMER_REPEAT);
+	CreateTimer(120.0, Timer_RegularCleanup, _, TIMER_REPEAT);
 
+	//fix anim resetting after inventory applied
+	HookEvent("post_inventory_application", OnInventoryApplied);
 
 	//get req admin flags
 	config.Rewind();
@@ -149,11 +154,12 @@ public void OnPluginEnd()
 			RemoveSkin(i);
 			PrintToChat(i, "FreakModels is being unloaded or reloaded. Your skin has been removed (but feel free to re-apply it!)");
 		}
+
+		PlayerData(i).ClearData();
 	}
 
 	while(allWearables.Length > 0)
 		CleanupWearables(false);
-
 }
 
 //Remove any skins from players that disconnect
@@ -174,9 +180,9 @@ public void OnEntityDestroyed(int entity)
 	
 	int usedBy = ItemUsedBy(EntIndexToEntRef(entity));
 
-	if (usedBy != -1)
+	if (usedBy != -1 && EntRefToEntIndex(PlayerData(usedBy).rSkinItem) == entity)
 	{
-		//i is the player whose skin was destroyed
+		//it was a skin that was destroyed
 		if (IsValidClient(usedBy)) MakePlayerVisible(usedBy);
 		PlayerData(usedBy).rSkinItem = 0;
 	}
@@ -293,8 +299,15 @@ Action MainCommand(int client, int args)
 		if (args > 0)
 		{
 			ReplyToCommand(client, "Sorry, couldn't understand your arguments.");
+			ReplyToCommand(client, "Enter `freakmodel -help` to print help in the console.");
+			// ReplyToCommand(client, "Enter `freakmodel -help` to print help in the console, or simply `freakmodel` to use a menu.");
 		}
-		ReplyToCommand(client, "Enter `freakmodel -help` to print help in the console.");
+		else 
+		{
+			// MainCommandMenu(client);
+			ReplyToCommand(client, "Enter `freakmodel -help` to print help in the console.");
+		}
+		return Plugin_Handled;
 	}
 
 
@@ -580,12 +593,12 @@ public Action Timer_HelpPrint(Handle timer, Handle hndl)
 		case 7:  { PrintToConsole(client, "Less important options: "); }
 		case 8:  { PrintToConsole(client, "- Enter -fullpath to use the path to a model instead of a name. This requires knowledge of Source model paths & locations."); }
 		case 9:  { PrintToConsole(client, "- Enter -target <username> to target a specific player. The command will target yourself if this is omitted."); }
-		case 11: { PrintToConsole(client, "- Enter -help to print this dialogue in your console."); }
-		case 12: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
-		case 13: { PrintToConsole(client, "--------------------------------"); }
-		case 14: { PrintToConsole(client, "Model names & their associated models are defined by the server operator. By default, you can use the classes (scout, medic, etc.), but there may be more!"); }
-		case 15: { PrintToConsole(client, "--------------------------------"); }
-		case 16:
+		case 10: { PrintToConsole(client, "- Enter -help to print this dialogue in your console."); }
+		case 11: { PrintToConsole(client, "All options (-skin, -anim, etc.) can also be specified with only the first letter (-s, -a, etc.) if you like."); }
+		case 12: { PrintToConsole(client, "--------------------------------"); }
+		case 13: { PrintToConsole(client, "Model names & their associated models are defined by the server operator. By default, you can use the classes (scout, medic, etc.), but there may be more!"); }
+		case 14: { PrintToConsole(client, "--------------------------------"); }
+		case 15:
 		{
 			PrintToConsole(client, "For example: inputting 'freakmodel -s heavy -t bob' will set bob's model to heavy, without changing their animations; inputting 'freakmodel -r' will reset your own model and animations.");
 			delete list;
@@ -622,75 +635,14 @@ void PrintHelp(int client)
 	CreateTimer(0.8, Timer_HelpPrint, list);
 	CreateTimer(0.9, Timer_HelpPrint, list);
 	CreateTimer(1.0, Timer_HelpPrint, list);
+	CreateTimer(1.1, Timer_HelpPrint, list);
+	CreateTimer(1.2, Timer_HelpPrint, list);
+	CreateTimer(1.3, Timer_HelpPrint, list);
+	CreateTimer(1.4, Timer_HelpPrint, list);
+	CreateTimer(1.5, Timer_HelpPrint, list);
 	
 	
 }
-
-/**
- * gets client id of specified username.
- * @param client Client ID of caller.
- * @param user String to search against.
- * @param targetsFound OUTPUT: number of targets found.
- * @param targetList OUTPUT: list to hold the targets.
- * @return if a target was found.
- */
-bool GetClientsFromUsername(int client, char[] user, int& targetsFound, int[] targetList, const int targetListSize)
-{
-	//find a player to match the entered user
-	bool tn_is_ml;
-	char foundName[65];
-
-	//trim quotes in case they added them
-	StripQuotes(user);
-
-	int deadTargetsFound;
-	int[] deadTargetList = new int[targetListSize];
-	
-	targetsFound = ProcessTargetString(user, client, targetList, targetListSize, COMMAND_FILTER_ALIVE, foundName, sizeof(foundName), tn_is_ml);
-
-	deadTargetsFound = ProcessTargetString(user, client, deadTargetList, targetListSize, COMMAND_FILTER_DEAD, foundName, sizeof(foundName), tn_is_ml);
-
-	if (deadTargetsFound > 0)
-	{
-		//add all dead targets to alive targets
-		for (int i = 0; i < deadTargetsFound; i++)
-		{
-			targetList[targetsFound + i] = deadTargetList[i];
-		}
-		if (targetsFound < 1) targetsFound = deadTargetsFound;
-		else targetsFound += deadTargetsFound;
-	}
-
-	if (targetsFound < 1)
-	{
-		//couldn't find one
-		ReplyToTargetError(client, targetsFound);
-		return false;
-	}
-	else
-	{
-		bool atLeastOneValid = false;
-		//could find one
-		for (int i = 0; i < targetsFound; i++)
-		{
-			if (!IsValidClient(targetList[i]))
-			{
-				targetList[i] = 0;
-			}
-			else atLeastOneValid = true;
-			
-		}
-		if (!atLeastOneValid)
-		{
-			//shouldn't happen - processtargetstring should have checked they're all valid
-			ReplyToCommand(client, "Sorry, something went wrong. Try again? (Error code 10)");
-			return false;
-		}
-		return true;
-	}
-}
-
-
 
 void ResetClientCommandData(int client)
 {

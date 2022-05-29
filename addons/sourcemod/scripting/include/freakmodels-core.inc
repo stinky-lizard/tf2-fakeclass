@@ -43,16 +43,17 @@ FuncOutput CreateWearable(int target, char[] model, int& rItem)
 	DispatchKeyValueVector(rSkinItem, "origin", pos);
 	DispatchKeyValue(rSkinItem, "model", model);
 
-	SetEntPropString(rSkinItem, Prop_Data, "m_iClassname", "playermodel_wearable");
+	SetEntPropString(rSkinItem, Prop_Data, "m_iClassname", "freakmodel_wearable");
 	//set team
 	SetEntProp(iSkinItem, Prop_Send, "m_iTeamNum", team);
+	
 	SetEntPropFloat(rSkinItem, Prop_Send, "m_flPlaybackRate", 1.0);
 	
 	//give effects - bonemerge, animations, shadow
 	int effects = GetEntProp(rSkinItem, Prop_Send, "m_fEffects");
 	effects |= EF_BONEMERGE|EF_BONEMERGE_FASTCULL;
 	effects |= EF_PARENT_ANIMATES;	
-	effects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW);	
+	effects &= ~(EF_NOSHADOW|EF_NORECEIVESHADOW);
 	SetEntProp(rSkinItem, Prop_Send, "m_fEffects", effects);
 	
 	//make it conform to the player's animations

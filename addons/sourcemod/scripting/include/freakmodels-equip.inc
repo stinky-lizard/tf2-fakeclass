@@ -3,8 +3,8 @@ Action EquipCommand(int client, int args)
 {
 	if (args < 1)
 	{
-		ReplyToCommand(client, "Printing fm_equip help in your console.");
-		//todo: help
+		Equip_PrintHelp(client);
+		return Plugin_Handled;
 	}
 
 	int targetList[MAXPLAYERS];
@@ -14,8 +14,57 @@ Action EquipCommand(int client, int args)
 	char operation[32];
 	GetCmdArg(1, operation, sizeof(operation));
 
+	operation[0] = CharToLower(operation[0]);
 
-	if (operation[0] == 'r')
+	if (operation[0] == 'h')
+		Equip_PrintHelp(client);
+	else if (operation[0] == 'i')
+	{
+		//get target if exists
+		if (args < 2 && IsValidClient(client))
+			targetList[0] = client;
+		else if (args < 2)
+		{
+			ReplyToCommand(client, "Please enter a player to view the FreakModels equip info of.");
+			return Plugin_Handled;
+		}
+		else
+		{
+			char targetInput[MAX_NAME_LENGTH];
+			GetCmdArg(2, targetInput, sizeof(targetInput));
+			bool foundOne = GetClientsFromUsername(client, targetInput, targetsFound, targetList, sizeof(targetList));
+			if (!foundOne) return Plugin_Handled; //client was already alerted their input was invalid by GetClientsFromUsername
+		}
+
+		char playerName[MAX_NAME_LENGTH];
+		char modelPath[PLATFORM_MAX_PATH];
+
+		for (int p = 0; p < targetsFound; p++)
+		{
+			GetClientName(targetList[p], playerName, sizeof(playerName));
+
+			PlayerData pData = PlayerData(targetList[p]);
+
+			static int slotsLength;
+			slotsLength = pData.equippableSlotsLength;
+
+			if (slotsLength < 1)
+			{
+				ReplyToCommand(client, "%s has no equipped models.", playerName);
+				continue;
+			}
+
+			for (int i = 1; i <= slotsLength; i++)
+			{
+				if (pData.GetEquippable(i) && IsValidEntity(pData.GetEquippable(i)))
+				{			
+					GetEntPropString(pData.GetEquippable(i), Prop_Data, "m_ModelName", modelPath, sizeof(modelPath));
+					ReplyToCommand(client, "%s: Slot %i: %s", playerName, i, modelPath)
+				}
+			}
+		}
+	}
+	else if (operation[0] == 'r')
 	{
 		//want to reset
 	
@@ -33,7 +82,6 @@ Action EquipCommand(int client, int args)
 		if (slotArg[0] == 'a')
 		{
 			//lets assume they meant all
-			ReplyToCommand(client, "Resetting all FreakModels equips.");
 			doAll = true;
 		}
 		else
@@ -64,7 +112,7 @@ Action EquipCommand(int client, int args)
 			char targetInput[MAX_NAME_LENGTH];
 			GetCmdArg(3, targetInput, sizeof(targetInput));
 			bool foundOne = GetClientsFromUsername(client, targetInput, targetsFound, targetList, sizeof(targetList));
-			if (!foundOne) return Plugin_Handled;
+			if (!foundOne) return Plugin_Handled; //client was already alerted their input was invalid by GetClientsFromUsername
 		}
 
 		char playerName[MAX_NAME_LENGTH];
@@ -74,17 +122,38 @@ Action EquipCommand(int client, int args)
 		{
 			for (int i = 0; i < targetsFound; i++)
 			{
+				if (targetList[i] == client) ReplyToCommand(client, "Resetting all FreakModels equips on you.");
+				else 
+				{
+					GetClientName(targetList[i], playerName, sizeof(playerName));
+					ReplyToCommand(client, "Resetting all FreakModels equips on %s.", playerName);
+				}
+
 				PlayerData pData = PlayerData(targetList[i]);
-				for (int j = 1; j <= pData.equippableSlotsLength; i++)
-					if (pData.GetEquippable(j)) RemoveEquippable(targetList[i], j);
+				int max = pData.equippableSlotsLength;
+				for (int j = 1; j <= max; j++)
+				{
+					if (pData.GetEquippable(j) && IsValidEntity(pData.GetEquippable(j)))
+						RemoveEquippable(targetList[i], j);
+				}
 				pData.InitEquipList();
 			}
 		}
 		else
 		{
+			char modelPath[PLATFORM_MAX_PATH];
+
 			for (int i = 0; i < targetsFound; i++)
 			{
-				if (pData.GetEquippable(slot) RemoveEquippable(targetList[i], slot);
+				GetEntPropString(PlayerData(targetList[i]).GetEquippable(slot), Prop_Data, "m_ModelName", modelPath, sizeof(modelPath));
+				if (targetList[i] == client) ReplyToCommand(client, "Removing your FreakModels equip in slot %i. (%s)", slot, modelPath);
+				else 
+				{
+					GetClientName(targetList[i], playerName, sizeof(playerName));
+					ReplyToCommand(client, "Removing %s's FreakModels equip in slot %i. (%s)", playerName, slot, modelPath);
+				}
+
+				RemoveEquippable(targetList[i], slot);
 			}
 		}
 	}
@@ -201,8 +270,6 @@ Action EquipCommand(int client, int args)
 		{
 			FuncOutput out = AddEquippable(targetList[i], modelPath, slot);
 			GetClientName(targetList[i], playerName, sizeof(playerName));
-			//test
-			PrintToChatAll("%s equippables length is %i.", playerName, PlayerData(targetList[i]).equippableSlotsLength);
 			if (targetList[i] == client)
 			{
 				ReplyToCommand(client, "You are now wearing \"%s\" in slot %i.", modelName, slot);
@@ -245,12 +312,102 @@ FuncOutput AddEquippable(int target, char[] modelPath, int slot)
 
 void RemoveEquippable(int target, int slot)
 {
-    PlayerData pData = PlayerData(target);
-    int rItem = pData.GetEquippable(slot);
+	PlayerData pData = PlayerData(target);
+	int rItem = pData.GetEquippable(slot);
+	if (!rItem) return; //its already 0
 
-    if (IsValidEntity(rItem)) TF2_RemoveWearable(target, EntRefToEntIndex(rItem));
+	if (IsValidEntity(rItem)) TF2_RemoveWearable(target, EntRefToEntIndex(rItem));
 
-    if (IsValidEntity(rItem)) RemoveEntity(rItem);
+	if (IsValidEntity(rItem)) RemoveEntity(rItem);
 
-    pData.SetEquippable(0, slot);
+	pData.SetEquippable(0, slot);
+}
+
+void Equip_PrintHelp(int client)
+{
+	ReplyToCommand(client, "Printing fm_equip help in your console.");
+	//this is horrible but ReplyToCommand doesn't want to print in the right order without it :(
+	//list is this: [userId, lineNum]
+	ArrayList list = new ArrayList();
+	if (client < 1)
+	{
+		list.Push(-1);
+	}
+	else
+	{
+		list.Push(GetClientUserId(client));
+	}
+	
+	list.Push(1);
+	CreateTimer(0.1, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.2, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.3, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.4, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.5, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.6, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.7, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.8, Equip_Timer_HelpPrint, list);
+	CreateTimer(0.9, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.0, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.1, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.2, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.3, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.4, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.5, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.6, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.7, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.8, Equip_Timer_HelpPrint, list);
+	CreateTimer(1.9, Equip_Timer_HelpPrint, list);
+	CreateTimer(2.0, Equip_Timer_HelpPrint, list);
+	
+
+}
+
+
+public Action Equip_Timer_HelpPrint(Handle timer, Handle hndl)
+{
+	
+	//fuck this. replytocommand doesn't print in the right order :(
+	ArrayList list = view_as<ArrayList>(hndl);
+
+	int client;
+	if (list.Get(0) < 0)
+	{
+		client = 0;
+	}
+	else 
+	{
+		client = GetClientOfUserId(list.Get(0));	
+	}
+	
+	
+	switch(list.Get(1))
+	{
+		case 1:  { PrintToConsole(client, "Use fm_equip to add a model to a player as a wearable."); }
+		case 2:  { PrintToConsole(client, "The player will not actually receive the item in their inventory, nor will it change their stats in any way."); }
+		case 3:  { PrintToConsole(client, "Options:"); }
+		case 4:  { PrintToConsole(client, "- Enter `fm_equip add` to add a model to a player."); }
+		case 5:  { PrintToConsole(client, "- Enter `fm_equip remove` to remove a model from a player."); }
+		case 6:  { PrintToConsole(client, "- Enter `fm_equip info` to view a player's current models."); }
+		case 7:  { PrintToConsole(client, "--------------------------------"); }
+		case 8:  { PrintToConsole(client, "Add mode usage: `fm_equip add <model> <slot> [target] [-fullpath]"); }
+		case 9:  { PrintToConsole(client, "- In place of <model>, add the name of the model as defined by the server operator."); }
+		case 10: { PrintToConsole(client, "- In place of <slot>, add the slot (between 1 and 99) to add the wearable to on the player."); }
+		case 11: { PrintToConsole(client, "- Optional: In place of [target], enter a player username (or a multi-target, e.g. @all) to target another player."); }
+		case 12: { PrintToConsole(client, "- Optional: Add -fullpath or -f at the end to use the path to a model instead of a model's name. This can use any loaded model."); }
+		case 13: { PrintToConsole(client, "--------------------------------"); }
+		case 14: { PrintToConsole(client, "Remove mode usage: `fm_equip remove <slot> [target]"); }
+		case 15: { PrintToConsole(client, "- In place of <slot>, add the slot containing the wearable you want to remove."); }
+		case 16: { PrintToConsole(client, "- Optional: In place of [target], enter a player username (or a multi-target, e.g. @all) to target another player."); }
+		case 17: { PrintToConsole(client, "--------------------------------"); }
+		case 18: { PrintToConsole(client, "Info mode usage: `fm_equip info <target>"); }
+		case 19: { PrintToConsole(client, "- In place of <target>, enter a player username (or a multi-target, e.g. @all) to view that player's info."); }
+		case 20:
+		{
+			delete list;
+			return Plugin_Handled;
+		}
+	}
+	list.Set(1, list.Get(1) + 1);
+	return Plugin_Handled;
 }

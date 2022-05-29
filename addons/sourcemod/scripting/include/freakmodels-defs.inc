@@ -156,8 +156,16 @@ methodmap PlayerData
 		ArrayList list = g_playersData[this.clientId].equippedItems;
 
 		if (list.Length < slot)
+		{
 			//not long enough
+			int oldLength = list.Length;
 			list.Resize(slot);
+
+			//initialize the new elements
+			//i assume its fine to set the data we have claimed in the list to 0. if not, lol!
+			for (int i = oldLength; i < slot; i++)
+				list.Set(i, 0);
+		}
 
 		list.Set(slot - 1, itemReference);
 
