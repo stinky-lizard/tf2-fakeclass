@@ -70,15 +70,6 @@ Action WeaponCommand(int client, int args)
             SDKHook(client, SDKHook_WeaponSwitchPost, SwitchedWeapon);
         }
 
-        ArrayList hookedEquipsForWeapon = view_as<ArrayList>(g_playerWeaponData.GetNum(rWeaponStr));
-
-        if (!hookedEquipsForWeapon)
-        {
-            //there aren't any equips hooked for this weapon
-            hookedEquipsForWeapon = new ArrayList();
-            g_playerWeaponData.SetNum(rWeaponStr, view_as<int>(hookedEquipsForWeapon));
-        }
-
         bool weaponAlreadyHooked;
         // int equipIndex;
 
@@ -92,6 +83,17 @@ Action WeaponCommand(int client, int args)
                 {
                     weaponAlreadyHooked = true;
                     list.Erase(list.FindValue(equip)); //we aren't doing anything else with it
+                    
+                    if (list.Length == 0)
+                    {
+                        LogMessage("List length 0!");
+                        //they've unhooked all their equips for this weapon
+                        delete list;
+
+                        LogMessage("%i", g_playerWeaponData.DeleteThis());
+
+                        CheckPlayerHookStatus(client);
+                    }
                     break;
                 } 
 
@@ -109,19 +111,20 @@ Action WeaponCommand(int client, int args)
         else
         {
             //its not in the list, hook it
+            g_playerWeaponData.JumpToKey(userIdStr);
+            ArrayList hookedEquipsForWeapon = view_as<ArrayList>(g_playerWeaponData.GetNum(rWeaponStr));
+
+            if (!hookedEquipsForWeapon)
+            {
+                //there aren't any equips hooked for this weapon
+                hookedEquipsForWeapon = new ArrayList();
+                g_playerWeaponData.SetNum(rWeaponStr, view_as<int>(hookedEquipsForWeapon));
+            }
+
             hookedEquipsForWeapon.Push(equip);
             ReplyToCommand(client, "The model in slot %i has been tied to your weapon.", slot);
         }
 
-        if (hookedEquipsForWeapon.Length == 0)
-        {
-            //they've unhooked all their equips for this weapon
-            delete hookedEquipsForWeapon;
-
-            g_playerWeaponData.DeleteKey(rWeaponStr);
-
-            CheckPlayerHookStatus(client);
-        }
         g_playerWeaponData.Rewind();
     }
 
@@ -181,8 +184,7 @@ void SwitchedWeapon(int client, int weapon)
         if (g_playerWeaponData.GotoFirstSubKey(false))
         {
             char keyToDelete[MAXINTLENGTH];
-            bool done;
-            
+
             do
             {
                 char sectionName[MAXINTLENGTH];
@@ -200,8 +202,6 @@ void SwitchedWeapon(int client, int weapon)
                         if (IsValidEntity(rEquip)) 
                         {
                             MakePlayerVisible(rEquip);
-                            //this should override all else
-                            done = true;
                         }
                         else
                         {
@@ -251,7 +251,7 @@ void SwitchedWeapon(int client, int weapon)
                     }
                     
                 }
-            } while (g_playerWeaponData.GotoNextKey(false) && !done);
+            } while (g_playerWeaponData.GotoNextKey(false));
 
             g_playerWeaponData.GoBack();
 
