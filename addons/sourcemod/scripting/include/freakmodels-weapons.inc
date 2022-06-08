@@ -79,18 +79,38 @@ Action WeaponCommand(int client, int args)
             g_playerWeaponData.SetNum(rWeaponStr, view_as<int>(hookedEquipsForWeapon));
         }
 
-        int equipIndex = hookedEquipsForWeapon.FindValue(equip);
+        bool weaponAlreadyHooked;
+        // int equipIndex;
 
-        if (equipIndex < 0)
+        if (g_playerWeaponData.GotoFirstSubKey(false))
         {
-            //its not in the list, hook it
-            hookedEquipsForWeapon.Push(equip);
+            do
+            {
+                ArrayList list = view_as<ArrayList>(g_playerWeaponData.GetNum(NULL_STRING));
+
+                if (list && list.FindValue(equip) > -1)
+                {
+                    weaponAlreadyHooked = true;
+                    list.Erase(list.FindValue(equip)); //we aren't doing anything else with it
+                    break;
+                } 
+
+            } while (g_playerWeaponData.GotoNextKey(false));
+            g_playerWeaponData.GoBack();
         }
-        else
+
+        if (weaponAlreadyHooked)
         {
             //unhook it
             MakePlayerVisible(equip);
-            hookedEquipsForWeapon.Erase(equipIndex);
+            // hookedEquipsForWeapon.Erase(equipIndex); // did this earlier
+            ReplyToCommand(client, "The model in slot %i has been untied from your weapon.", slot);
+        }
+        else
+        {
+            //its not in the list, hook it
+            hookedEquipsForWeapon.Push(equip);
+            ReplyToCommand(client, "The model in slot %i has been tied to your weapon.", slot);
         }
 
         if (hookedEquipsForWeapon.Length == 0)
