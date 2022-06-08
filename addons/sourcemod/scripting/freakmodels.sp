@@ -182,25 +182,27 @@ public void OnClientDisconnect(int client)
 		//the equippables are already removed, but we need to remove their settings from the kv
 		char userIdStr[MAXINTLENGTH];
 		IntToString(GetClientUserId(client), userIdStr, sizeof(userIdStr));
-		
-		g_playerWeaponData.Rewind();
-
-		if (g_playerWeaponData.JumpToKey(userIdStr))
+		if (g_playerWeaponData)
 		{
-			if (g_playerWeaponData.GotoFirstSubKey(false))
-			{
-				do
-				{
-					ArrayList weaponEquipsList = view_as<ArrayList>(g_playerWeaponData.GetNum(NULL_STRING));
+			g_playerWeaponData.Rewind();
 
-					if (weaponEquipsList) delete weaponEquipsList;
+			if (g_playerWeaponData.JumpToKey(userIdStr))
+			{
+				if (g_playerWeaponData.GotoFirstSubKey(false))
+				{
+					do
+					{
+						ArrayList weaponEquipsList = view_as<ArrayList>(g_playerWeaponData.GetNum(NULL_STRING));
+
+						if (weaponEquipsList) delete weaponEquipsList;
+					}
+					while(g_playerWeaponData.GotoNextKey(false));
+					g_playerWeaponData.GoBack();
 				}
-				while(g_playerWeaponData.GotoNextKey(false));
-				g_playerWeaponData.GoBack();
+				g_playerWeaponData.DeleteThis();
 			}
-			g_playerWeaponData.DeleteThis();
+			SDKUnhook(client, SDKHook_WeaponSwitchPost, SwitchedWeapon);
 		}
-		SDKUnhook(client, SDKHook_WeaponSwitchPost, SwitchedWeapon);
 	#endif
 }
 
