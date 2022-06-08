@@ -54,6 +54,7 @@ ModelChangeData g_clientsCommandData[MAXPLAYERS + 1];
 // Handle regularCleanupTimer = null;
 
 #define PLAYERSDATASIZE (MAXPLAYERS + 1)
+#define MAXINTLENGTH 22 //64 bit ints are up to 19 characters long, + 1 for sign, + 1 for terminator, + 1 for safety
 
 //hidden - only accessible with the PlayerData methodmap
 static PlayerDataStruct g_playersData[PLAYERSDATASIZE];

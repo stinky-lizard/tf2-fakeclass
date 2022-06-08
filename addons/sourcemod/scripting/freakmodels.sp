@@ -11,11 +11,12 @@
 #include <freakmodels-manage>
 // #include <freakmodels-menu>
 #include <freakmodels-fixes>
+#include <freakmodels-weapons>
 
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3.0.2"
+#define PLUGIN_VERSION "1.3.1"
 
 
 public Plugin myinfo = 
@@ -109,6 +110,8 @@ public void OnPluginStart()
 	RegAdminCmd("fakeclass", MainCommand, adm); //for backwards-compatibility QoL
 
 	RegAdminCmd("fm_equip", EquipCommand, adm);
+
+	RegAdminCmd("fm_weapon", WeaponCommand, adm);
 }
 
 //precache models found in the config file
@@ -169,10 +172,18 @@ public void OnClientDisconnect(int client)
 	RemoveSkin(client);
 	//dont need to manage the anim
 	PlayerData(client).ClearData();
+
+	#if defined freakmodels_weapons_included
+		
+	#endif
 }
 
 public void OnEntityDestroyed(int entity)
 {
+	#if defined freakmodels_weapons_included
+		UnhookWeapon(entity);
+	#endif
+
 	char classname[MAX_NAME_LENGTH];
 	GetEntityClassname(entity, classname, sizeof(classname));
 	if (!(StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "freakmodel_wearable", false)))
@@ -186,6 +197,8 @@ public void OnEntityDestroyed(int entity)
 		//it was a skin that was destroyed
 		if (IsValidClient(usedBy)) MakePlayerVisible(usedBy);
 		PlayerData(usedBy).rSkinItem = 0;
+
+		PrintToChat(usedBy, "[FreakModels] Heads up, your skin has been removed.");
 	}
 }
 
