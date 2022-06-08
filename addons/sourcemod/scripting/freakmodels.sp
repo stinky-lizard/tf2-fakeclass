@@ -171,7 +171,12 @@ public void OnClientDisconnect(int client)
 {
 	RemoveSkin(client);
 	//dont need to manage the anim
-	PlayerData(client).ClearData();
+	PlayerData pData = PlayerData(client);
+
+	for (int i = 1; i <= pData.equippableSlotsLength; i++)
+		RemoveEquippable(client, i);
+
+	pData.ClearData();
 
 	#if defined freakmodels_weapons_included
 		
