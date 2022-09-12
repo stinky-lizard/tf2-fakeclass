@@ -16,7 +16,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3.1"
+#define PLUGIN_VERSION "1.3.1.1"
 
 
 public Plugin myinfo = 
@@ -41,7 +41,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	if (g_engineversion != Engine_TF2)
 	{
 		SetFailState("FreakModels was made for use with Team Fortress 2 only.");
+		return APLRes_Failure;
 	}
+	return APLRes_Success;
 } 
 
 public void OnPluginStart()
@@ -604,6 +606,7 @@ public int ConfirmAllMenuHandler(Menu menu, MenuAction action, int param1, int p
 			}
 		}
 	}
+	return 0;
 }
 
 public Action Timer_HelpPrint(Handle timer, Handle hndl)

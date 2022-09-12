@@ -6,6 +6,7 @@
 public Action Timer_RegularCleanup(Handle timer)
 {
 	CleanupWearables();
+	return Plugin_Continue;
 }
 
 KeyValues g_cleanedEnts = null;
