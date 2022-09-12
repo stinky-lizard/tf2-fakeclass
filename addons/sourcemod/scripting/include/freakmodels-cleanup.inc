@@ -1,6 +1,6 @@
 
 /*
- * Stuff for the regular cleanup, by default every 3 minutes.
+ * Stuff for the regular cleanup, by default every 2 minutes.
  */
 
 public Action Timer_RegularCleanup(Handle timer)
@@ -46,8 +46,8 @@ void CleanupWearables(bool onlyLost = true)
 					g_cleanedEnts.SetNum(rItemStr, 1);
 				}
 
-				//is not already deleted
-				if (IsValidEntity(rItem)) 
+				//is not already deleted -- want else if bc it's still valid after being removed tho its marked for deletion
+				else if (IsValidEntity(rItem)) 
 				{
 					RemoveEntity(rItem);	
 					g_cleanedEnts.SetNum(rItemStr, 1);

@@ -145,15 +145,23 @@ Action EquipCommand(int client, int args)
 
 			for (int i = 0; i < targetsFound; i++)
 			{
-				GetEntPropString(PlayerData(targetList[i]).GetEquippable(slot), Prop_Data, "m_ModelName", modelPath, sizeof(modelPath));
-				if (targetList[i] == client) ReplyToCommand(client, "Removing your FreakModels equip in slot %i. (%s)", slot, modelPath);
-				else 
+				int toRemove = PlayerData(targetList[i]).GetEquippable(slot);
+				if (!toRemove)
 				{
-					GetClientName(targetList[i], playerName, sizeof(playerName));
-					ReplyToCommand(client, "Removing %s's FreakModels equip in slot %i. (%s)", playerName, slot, modelPath);
+					ReplyToCommand(client, "There is no model in slot %i.", slot);
 				}
+				else
+				{
+					GetEntPropString(toRemove, Prop_Data, "m_ModelName", modelPath, sizeof(modelPath));
+					if (targetList[i] == client) ReplyToCommand(client, "Removing your FreakModels equip in slot %i. (%s)", slot, modelPath);
+					else 
+					{
+						GetClientName(targetList[i], playerName, sizeof(playerName));
+						ReplyToCommand(client, "Removing %s's FreakModels equip in slot %i. (%s)", playerName, slot, modelPath);
+					}
 
-				RemoveEquippable(targetList[i], slot);
+					RemoveEquippable(targetList[i], slot);
+				}
 			}
 		}
 	}

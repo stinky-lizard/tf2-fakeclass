@@ -10,6 +10,13 @@ Action WeaponCommand(int client, int args)
         return Plugin_Handled;
     }
 
+    if (client == 0)
+    {
+        ReplyToCommand(client, "Sorry, fm_weapon does not have the ability to target other players right now.");
+        ReplyToCommand(client, "Please run it through a client's console or the chat.");
+        return Plugin_Handled;
+    }
+
     char argstr[5];
     GetCmdArg(1, argstr, sizeof(argstr));
 
@@ -86,11 +93,11 @@ Action WeaponCommand(int client, int args)
                     
                     if (list.Length == 0)
                     {
-                        LogMessage("List length 0!");
+                        // LogMessage("List length 0!");
                         //they've unhooked all their equips for this weapon
                         delete list;
 
-                        LogMessage("%i", g_playerWeaponData.DeleteThis());
+                        // LogMessage("%i", g_playerWeaponData.DeleteThis());
 
                         CheckPlayerHookStatus(client);
                     }
@@ -166,7 +173,7 @@ void PrintWeaponHelp(int client)
 
 void SwitchedWeapon(int client, int weapon)
 {
-    LogMessage("SwitchedWeapon %i, %i", client, weapon);
+    // LogMessage("SwitchedWeapon %i, %i", client, weapon);
     char[] export = new char[g_playerWeaponData.ExportLength];
     g_playerWeaponData.ExportToString(export, g_playerWeaponData.ExportLength);
     PrintToServer("%s", export);

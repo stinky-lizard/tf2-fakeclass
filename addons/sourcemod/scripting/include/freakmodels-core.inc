@@ -160,7 +160,8 @@ bool RemoveSkin(int target)
 
 		TF2_RemoveWearable(target, index);
 		//docs say TF2_RemoveWearable deletes it. hopefully this fixes the bug
-		if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
+		//no longer needed, seems valve fixed this? wow
+		// if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
 
 
 		skinRemoved = true;
