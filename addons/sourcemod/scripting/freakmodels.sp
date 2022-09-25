@@ -16,7 +16,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3.2"
+#define PLUGIN_VERSION "1.3.3"
 
 
 public Plugin myinfo = 
@@ -448,6 +448,8 @@ Action MainCommand(int client, int args)
 		return Plugin_Handled;
 	}
 
+	g_clientsCommandData[client].targets = targetList;
+	g_clientsCommandData[client].numTargets = targetsFound;
 
 	if (targetsFound < 1)
 	{
@@ -473,8 +475,6 @@ Action MainCommand(int client, int args)
 	}
 	else
 	{
-		g_clientsCommandData[client].targets = targetList;
-		g_clientsCommandData[client].numTargets = targetsFound;
 		SetModelsFromData(client);
 	}
 
