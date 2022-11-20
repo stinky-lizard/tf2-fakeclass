@@ -44,6 +44,8 @@ enum struct PlayerDataStruct
 	char skinPath[PLATFORM_MAX_PATH];
 	char animPath[PLATFORM_MAX_PATH];
 
+	bool inventoryChanged;
+
 	ArrayList equippedItems;
 }
 
@@ -75,6 +77,12 @@ methodmap PlayerData
 		public get() { return view_as<int>(this); }
 	}
 	
+	property bool inventoryChanged
+	{
+		public get() { return g_playersData[this.clientId].inventoryChanged; }
+		public set(bool value) { g_playersData[this.clientId].inventoryChanged = value; }
+	}
+
 	property int userId
 	{
 		public get() { return g_playersData[this.clientId].userId; }
