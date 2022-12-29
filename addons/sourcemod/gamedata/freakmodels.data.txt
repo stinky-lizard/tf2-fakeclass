@@ -6,8 +6,8 @@
 		{
 			"CBasePlayer::EquipWearable"
 			{
-				"windows" "435"
-				"linux" "436"
+				"linux" "439"
+				"windows" "438"
 			}
 		}
 	}
