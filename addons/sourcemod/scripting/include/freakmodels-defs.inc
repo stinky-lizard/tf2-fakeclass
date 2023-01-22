@@ -62,7 +62,6 @@ ModelChangeData g_clientsCommandData[MAXPLAYERS + 1];
 static PlayerDataStruct g_playersData[PLAYERSDATASIZE];
 
 Handle g_hDummyItemView = null;
-Handle g_hEquipWearable = null;
 
 methodmap PlayerData
 {

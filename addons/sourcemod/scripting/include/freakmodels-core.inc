@@ -129,9 +129,6 @@ FuncOutput SetSkin(int target, char[] skinModel)
 	//Q: arthurdead's plugins use this, reason?
 	// SetEntityRenderMode(rSkinItem, RENDER_TRANSCOLOR);
 	// SetEntityRenderColor(rSkinItem, 255, 255, 255, 255);
-	
-	//equip skin
-	SDKCall(g_hEquipWearable, target, rSkinItem);
 
 	return GOOD;
 }
@@ -158,10 +155,7 @@ bool RemoveSkin(int target)
 		
 		AcceptEntityInput(index, "ClearParent");
 
-		TF2_RemoveWearable(target, index);
-		//docs say TF2_RemoveWearable deletes it. hopefully this fixes the bug
-		//no longer needed, seems valve fixed this? wow
-		// if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
+		if (IsValidEntity(pData.rSkinItem)) RemoveEntity(pData.rSkinItem);
 
 
 		skinRemoved = true;

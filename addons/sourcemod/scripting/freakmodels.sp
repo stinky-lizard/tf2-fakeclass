@@ -16,7 +16,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3.3.2"
+#define PLUGIN_VERSION "1.4"
 
 
 public Plugin myinfo = 
@@ -64,25 +64,6 @@ public void OnPluginStart()
 	TF2Items_SetQuality(g_hDummyItemView, 0);
 	TF2Items_SetLevel(g_hDummyItemView, 0);
 	TF2Items_SetNumAttributes(g_hDummyItemView, 0);
-
-	//prepare the EquipWearable function call
-	GameData hGameConf = new GameData("freakmodels.data");
-	if(hGameConf == null) {
-		SetFailState("FreakModels: Gamedata (addons/sourcemod/gamedata/freakmodels.data.txt) not found.");
-		delete hGameConf;
-		return;
-	}
-
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Virtual, "CBasePlayer::EquipWearable");
-	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
-	g_hEquipWearable = EndPrepSDKCall();
-	if(g_hEquipWearable == null) {
-		SetFailState("FreakModels: Failed to create SDKCall for CBasePlayer::EquipWearable.");
-		delete hGameConf;
-		return;
-	}
-	delete hGameConf;
 	
 	//model configs
 	RefreshConfigFromFile();

@@ -334,8 +334,6 @@ void RemoveEquippable(int target, int slot)
 void Equip_PrintHelp(int client)
 {
 	ReplyToCommand(client, "Printing fm_equip help in your console.");
-	//this is horrible but ReplyToCommand doesn't want to print in the right order without it :(
-	//list is this: [userId, lineNum]
 
 	PrintToConsole(client, "Use fm_equip to add a model to a player as a wearable.\nThe player will not actually receive the item in their inventory, nor will it change their stats in any way.\nOptions:\n- Enter `fm_equip add` to add a model to a player.\n- Enter `fm_equip remove` to remove a model from a player.\n- Enter `fm_equip info` to view a player's current models.\n\nAdd mode usage: `fm_equip add <model> <slot> [target] [-fullpath]\n- In place of <model>, add the name of the model as defined by the server operator.\n- In place of <slot>, add the slot (between 1 and 99) to add the wearable to on the player.\n- Optional: In place of [target], enter a player username (or a multi-target, e.g. @all) to target another player.\n- Optional: Add -fullpath or -f at the end to use the path to a model instead of a model's name. This can use any loaded model.\n");
 	PrintToConsole(client, "Remove mode usage: `fm_equip remove <slot> [target]\n- In place of <slot>, add the slot containing the wearable you want to remove.\n- Optional: In place of [target], enter a player username (or a multi-target, e.g. @all) to target another player.\n\nInfo mode usage: `fm_equip info <target>\n- In place of <target>, enter a player username (or a multi-target, e.g. @all) to view that player's info.\n");
